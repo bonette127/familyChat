@@ -1,0 +1,6 @@
+{
+  "name": "Kinfolk - Family Chat & Hub",
+  "description": "A warm, private space for family messaging, photo sharing, dinner polls, voice notes, shared lists, and family events.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
