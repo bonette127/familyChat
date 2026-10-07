@@ -1,18 +1,35 @@
-import { Channel, ChoreItem, FamilyEvent, FamilyMember, GroceryItem, Message, QuickNotice } from '../types/family';
+import { AdminCredentials, Channel, ChoreItem, FamilyEvent, FamilyMember, GroceryItem, Message, QuickNotice } from '../types/family';
+
+export const DEFAULT_ADMIN_CREDENTIALS: AdminCredentials = {
+  email: 'admin@kinfolk.family',
+  password: 'admin',
+  mainMemberId: 'mary',
+};
 
 export const INITIAL_MEMBERS: FamilyMember[] = [
   {
     id: 'mary',
     name: 'Mary',
-    role: 'Daughter / Coordinator',
+    role: 'Main Member & Family Admin',
     avatarColor: 'bg-emerald-500',
-    status: 'Organizing the family weekend',
+    status: 'Managing family chat & access',
     statusEmoji: '✨',
+    moodEmoji: '😊',
+    shortStatus: 'At Home',
+    lastCheckInTime: 'Today, 8:30 AM',
+    checkInNote: 'Happy to have everyone connected!',
+    relationship: 'Organizer & Eldest Daughter',
+    hometown: 'Seattle',
     batteryLevel: 91,
     location: 'Home',
     birthday: 'Nov 12',
     phone: '+1 (555) 234-5678',
+    email: 'admin@kinfolk.family',
     isOnline: true,
+    isAdmin: true,
+    hasChatAccess: true,
+    accessGrantedAt: '2026-01-01',
+    accessGrantedBy: 'mary',
   },
   {
     id: 'mom',
@@ -21,11 +38,22 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     avatarColor: 'bg-rose-500',
     status: 'Baking fresh sourdough rolls',
     statusEmoji: '🍞',
+    moodEmoji: '☕',
+    shortStatus: 'At Home',
+    lastCheckInTime: 'Today, 7:45 AM',
+    checkInNote: 'Morning coffee & fresh bread!',
+    relationship: 'Mother',
+    hometown: 'Portland',
     batteryLevel: 78,
     location: 'Kitchen',
     birthday: 'Aug 24',
     phone: '+1 (555) 876-5432',
+    email: 'sarah.mom@kinfolk.family',
     isOnline: true,
+    isAdmin: false,
+    hasChatAccess: true,
+    accessGrantedAt: '2026-01-01',
+    accessGrantedBy: 'mary',
   },
   {
     id: 'dad',
@@ -34,11 +62,22 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     avatarColor: 'bg-sky-500',
     status: 'At the farmer\'s market',
     statusEmoji: '🥬',
+    moodEmoji: '🚗',
+    shortStatus: 'Commuting',
+    lastCheckInTime: 'Today, 8:15 AM',
+    checkInNote: 'Heading downtown for ingredients',
+    relationship: 'Father',
+    hometown: 'Seattle',
     batteryLevel: 62,
     location: 'Downtown Market',
     birthday: 'Jan 19',
     phone: '+1 (555) 345-6789',
+    email: 'david.dad@kinfolk.family',
     isOnline: true,
+    isAdmin: false,
+    hasChatAccess: true,
+    accessGrantedAt: '2026-01-01',
+    accessGrantedBy: 'mary',
   },
   {
     id: 'grandma',
@@ -47,11 +86,22 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     avatarColor: 'bg-amber-500',
     status: 'Knitting in the sunroom',
     statusEmoji: '🧶',
+    moodEmoji: '🌿',
+    shortStatus: 'At Home',
+    lastCheckInTime: 'Yesterday, 5:00 PM',
+    checkInNote: 'Peaceful afternoon in the sunroom',
+    relationship: 'Grandmother (Maternal)',
+    hometown: 'Rosewood',
     batteryLevel: 94,
     location: 'Sunroom',
     birthday: 'Apr 03',
     phone: '+1 (555) 456-7890',
+    email: 'evelyn.grandma@kinfolk.family',
     isOnline: false,
+    isAdmin: false,
+    hasChatAccess: true,
+    accessGrantedAt: '2026-01-01',
+    accessGrantedBy: 'mary',
   },
   {
     id: 'liam',
@@ -60,11 +110,22 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     avatarColor: 'bg-purple-500',
     status: 'Practicing for soccer match',
     statusEmoji: '⚽',
+    moodEmoji: '⚡',
+    shortStatus: 'Busy',
+    lastCheckInTime: 'Today, 9:00 AM',
+    checkInNote: 'Training session before lunch',
+    relationship: 'Younger Brother',
+    hometown: 'Seattle',
     batteryLevel: 45,
     location: 'Westside Field',
     birthday: 'Sep 29',
     phone: '+1 (555) 567-8901',
+    email: 'liam.brother@kinfolk.family',
     isOnline: true,
+    isAdmin: false,
+    hasChatAccess: true,
+    accessGrantedAt: '2026-01-01',
+    accessGrantedBy: 'mary',
   },
 ];
 
@@ -132,6 +193,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Good morning everyone! ☀️ The weather is absolutely gorgeous today. Don\'t forget to pack light jackets for tonight.',
     timestamp: '2026-10-02T08:15:00Z',
     reactions: { '❤️': ['mary', 'dad'], '☕': ['dad'] },
+    readBy: ['mom', 'mary', 'dad', 'liam', 'grandma'],
     isPinned: false,
   },
   {
@@ -141,6 +203,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Just dropped off Liam at soccer practice! Heading over to the farmer\'s market now.',
     timestamp: '2026-10-02T08:42:00Z',
     reactions: { '👍': ['mom', 'mary'] },
+    readBy: ['dad', 'mom', 'mary'],
     attachments: [
       {
         type: 'location',
@@ -156,6 +219,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Coach says our tournament next month is in Green Valley! Can we make a camping weekend out of it? ⛺',
     timestamp: '2026-10-02T09:10:00Z',
     reactions: { '🎉': ['mary', 'mom', 'grandma'], '⛺': ['dad'] },
+    readBy: ['liam', 'mary', 'mom', 'grandma', 'dad'],
   },
   {
     id: 'msg-4',
@@ -164,6 +228,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'That sounds marvelous darling. I still have the old Coleman lantern and the big checkered picnic blanket!',
     timestamp: '2026-10-02T09:28:00Z',
     reactions: { '❤️': ['mary', 'liam', 'mom'] },
+    readBy: ['grandma', 'mary', 'liam', 'mom'],
   },
   {
     id: 'msg-5',
@@ -172,6 +237,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Look who fell asleep right next to Liam\'s soccer boots after running 3 miles this morning 🐶',
     timestamp: '2026-10-02T10:05:00Z',
     reactions: { '❤️': ['mom', 'grandma', 'liam', 'dad'], '😍': ['mom'] },
+    readBy: ['mary', 'mom', 'grandma', 'liam'],
     attachments: [
       {
         type: 'image',
@@ -188,6 +254,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Hey crew! What are we in the mood for dinner tonight? Dad\'s at the market right now so vote quickly!',
     timestamp: '2026-10-02T10:30:00Z',
     reactions: { '🍲': ['mary', 'dad'] },
+    readBy: ['mom', 'mary', 'dad', 'liam', 'grandma'],
     poll: {
       question: 'Friday Night Family Dinner Choice',
       createdBy: 'mom',
@@ -205,6 +272,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Looks like Lasagna is running away with it! 😋 I grabbed San Marzano tomatoes, fresh buffalo mozzarella, and sweet basil.',
     timestamp: '2026-10-02T11:15:00Z',
     reactions: { '🙌': ['mary', 'mom'], '🤤': ['liam'] },
+    readBy: ['dad', 'mary', 'mom'],
     attachments: [
       {
         type: 'image',
@@ -221,6 +289,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Found our summer picnic photos from Mill Creek Park! Remember when Dad tried to balance the entire watermelon on one hand?',
     timestamp: '2026-09-28T14:20:00Z',
     reactions: { '😂': ['dad', 'liam'], '❤️': ['mom', 'grandma'] },
+    readBy: ['mary', 'dad', 'liam', 'mom', 'grandma'],
     attachments: [
       {
         type: 'image',
@@ -236,6 +305,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'And here is the summit lookout from our Pine Ridge trail hike last autumn. Best view in the county!',
     timestamp: '2026-09-29T16:45:00Z',
     reactions: { '🏔️': ['liam', 'mary'], '❤️': ['mom'] },
+    readBy: ['dad', 'liam', 'mary', 'mom'],
     attachments: [
       {
         type: 'image',
@@ -252,6 +322,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Grandma\'s 80th Jubilee planning is on! Here is the timeline for Saturday Oct 18:',
     timestamp: '2026-10-01T15:00:00Z',
     reactions: { '🎂': ['mom', 'dad', 'liam', 'grandma'] },
+    readBy: ['mary', 'mom', 'dad', 'liam', 'grandma'],
     isPinned: true,
   },
   {
@@ -261,6 +332,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'No fussing over me you hear! Just your smiling faces and some of Sarah\'s peach cobbler is all I want.',
     timestamp: '2026-10-01T15:30:00Z',
     reactions: { '❤️': ['mary', 'mom', 'dad'] },
+    readBy: ['grandma', 'mary', 'mom', 'dad'],
   },
   // DM with Mom
   {
@@ -270,6 +342,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Mary sweetie, did you want me to pick up those oat milk cartons for your morning smoothies?',
     timestamp: '2026-10-02T11:00:00Z',
     reactions: { '❤️': ['mary'] },
+    readBy: ['mom', 'mary'],
   },
   {
     id: 'msg-dm-2',
@@ -278,6 +351,7 @@ export const INITIAL_MESSAGES: Message[] = [
     content: 'Yes please Mom! Extra creamy if they have it. Thank you so much! 🥰',
     timestamp: '2026-10-02T11:04:00Z',
     reactions: { '🥰': ['mom'] },
+    readBy: ['mary', 'mom'],
   },
 ];
 

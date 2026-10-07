@@ -24,7 +24,8 @@ import {
   FamilyMember, 
   GroceryItem, 
   Message, 
-  QuickNotice 
+  QuickNotice,
+  AdminCredentials
 } from './types/family';
 
 import { 
@@ -34,7 +35,8 @@ import {
   INITIAL_GROCERIES, 
   INITIAL_MEMBERS, 
   INITIAL_MESSAGES, 
-  INITIAL_NOTICES 
+  INITIAL_NOTICES,
+  DEFAULT_ADMIN_CREDENTIALS
 } from './data/initialData';
 
 import { Sidebar } from './components/Sidebar';
@@ -49,6 +51,8 @@ import { NoticeBoardModal } from './components/NoticeBoardModal';
 import { FamilyMembersModal } from './components/FamilyMembersModal';
 import { CreatePollModal } from './components/CreatePollModal';
 import { VoiceNoteRecorder } from './components/VoiceNoteRecorder';
+import { AdminLoginModal } from './components/AdminLoginModal';
+import { DailyCheckInModal } from './components/DailyCheckInModal';
 
 import { playSendChime, playReceiveChime, playReactionPop } from './utils/audio';
 
@@ -187,23 +191,52 @@ export default function App() {
     ];
   });
 
+  // Admin Credentials & Authentication State
+  const [adminCredentials, setAdminCredentials] = useState<AdminCredentials>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_admin_creds');
+      return saved ? JSON.parse(saved) : DEFAULT_ADMIN_CREDENTIALS;
+    } catch {
+      return DEFAULT_ADMIN_CREDENTIALS;
+    }
+  });
+
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_admin_session');
+      return saved !== null ? JSON.parse(saved) : true; // Default admin logged in on first launch
+    } catch {
+      return true;
+    }
+  });
+
   // App settings & simulation
   const [isLivelyMode, setIsLivelyMode] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [typingMemberName, setTypingMemberName] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Modals
+  const [isDailyCheckInOpen, setIsDailyCheckInOpen] = useState(false);
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   const [isNoticeBoardOpen, setIsNoticeBoardOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
   const [isCreatePollOpen, setIsCreatePollOpen] = useState(false);
   const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; caption?: string } | null>(null);
 
   // --- Persistence Side Effects ---
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_admin_creds', JSON.stringify(adminCredentials));
+  }, [adminCredentials]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_admin_session', JSON.stringify(isAdminLoggedIn));
+  }, [isAdminLoggedIn]);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_name', JSON.stringify(familyName));
   }, [familyName]);
@@ -258,6 +291,26 @@ export default function App() {
   });
 
   // --- Handlers ---
+  const handleMarkAsRead = (messageIds: string[]) => {
+    setMessages((prev) => {
+      let hasChanges = false;
+      const next = prev.map((msg) => {
+        if (messageIds.includes(msg.id)) {
+          const currentRead = msg.readBy || [];
+          if (!currentRead.includes(activeMemberId)) {
+            hasChanges = true;
+            return {
+              ...msg,
+              readBy: [...currentRead, activeMemberId],
+            };
+          }
+        }
+        return msg;
+      });
+      return hasChanges ? next : prev;
+    });
+  };
+
   const handleSendMessage = (
     text: string,
     attachments?: Attachment[],
@@ -272,6 +325,7 @@ export default function App() {
       content: text,
       timestamp: new Date().toISOString(),
       reactions: {},
+      readBy: [activeMemberId],
       attachments,
       replyTo,
     };
@@ -339,9 +393,22 @@ export default function App() {
           content: replyContent,
           timestamp: new Date().toISOString(),
           reactions: { '❤️': [senderId] },
+          readBy: [randomReplier.id],
         };
 
-        setMessages((prev) => [...prev, replyMsg]);
+        setMessages((prev) => [
+          ...prev.map((m) => {
+            // Replier also read userMsg and recent messages in this channel
+            if (m.channelId === channelId) {
+              const currentRead = m.readBy || [];
+              if (!currentRead.includes(randomReplier.id)) {
+                return { ...m, readBy: [...currentRead, randomReplier.id] };
+              }
+            }
+            return m;
+          }),
+          replyMsg,
+        ]);
 
         // Also add reaction to user's original message
         setMessages((prev) =>
@@ -450,6 +517,7 @@ export default function App() {
       content: `📊 New Family Vote: ${question}`,
       timestamp: new Date().toISOString(),
       reactions: {},
+      readBy: [activeMemberId],
       poll: {
         question,
         createdBy: activeMemberId,
@@ -604,6 +672,41 @@ export default function App() {
     setNotices((prev) => prev.filter((n) => n.id !== id));
   };
 
+  // --- Daily Check-in Handler ---
+  const handleSaveDailyCheckIn = (
+    memberId: string,
+    moodEmoji: string,
+    shortStatus: string,
+    note?: string,
+    shareToChat?: boolean
+  ) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              moodEmoji,
+              shortStatus,
+              lastCheckInTime: `Today, ${timeStr}`,
+              checkInNote: note,
+            }
+          : m
+      )
+    );
+
+    playSendChime(isMuted);
+
+    if (shareToChat) {
+      const noteSnippet = note ? `\n💬 "${note}"` : '';
+      handleSendMessage(
+        `✨ **Daily Check-in:** ${moodEmoji} feeling **${shortStatus}**${noteSnippet}`
+      );
+    }
+  };
+
   // --- Member Handlers ---
   const handleUpdateMember = (updated: FamilyMember) => {
     setMembers((prev) =>
@@ -611,10 +714,37 @@ export default function App() {
     );
   };
 
+  const handleToggleChatAccess = (memberId: string) => {
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id === memberId) {
+          const next = !m.hasChatAccess;
+          return {
+            ...m,
+            hasChatAccess: next,
+            accessGrantedAt: next ? new Date().toISOString() : undefined,
+            accessGrantedBy: next ? activeMember.name : undefined,
+          };
+        }
+        return m;
+      })
+    );
+  };
+
+  const handleDeleteMember = (memberId: string) => {
+    if (memberId === 'mary') return; // Cannot delete main member
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    if (activeMemberId === memberId) {
+      setActiveMemberId('mary');
+    }
+  };
+
   const handleAddMember = (newMemberData: Omit<FamilyMember, 'id'>) => {
     const newMember: FamilyMember = {
       ...newMemberData,
       id: `member-${Date.now()}`,
+      accessGrantedAt: newMemberData.hasChatAccess ? new Date().toISOString() : undefined,
+      accessGrantedBy: newMemberData.hasChatAccess ? activeMember.name : undefined,
     };
     setMembers((prev) => [...prev, newMember]);
     setActiveMemberId(newMember.id);
@@ -645,6 +775,8 @@ export default function App() {
       setChores(INITIAL_CHORES);
       setEvents(INITIAL_EVENTS);
       setNotices(INITIAL_NOTICES);
+      setAdminCredentials(DEFAULT_ADMIN_CREDENTIALS);
+      setIsAdminLoggedIn(true);
     }
   };
 
@@ -663,8 +795,12 @@ export default function App() {
         onAddChannel={handleAddChannel}
         members={members}
         activeMemberId={activeMemberId}
+        messages={messages}
+        onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
         onOpenMembersModal={() => setIsMembersModalOpen(true)}
         onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
         isLivelyMode={isLivelyMode}
         onToggleLivelyMode={() => setIsLivelyMode(!isLivelyMode)}
         onResetData={handleResetData}
@@ -690,6 +826,10 @@ export default function App() {
               onToggleSidebarMobile={() => setIsMobileSidebarOpen(true)}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+              onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+              onInsertPromptToChat={(prompt) => handleSendMessage(prompt)}
             />
 
             {/* Chat Messages Feed */}
@@ -697,11 +837,16 @@ export default function App() {
               messages={currentChannelMessages}
               members={members}
               activeMemberId={activeMemberId}
+              selectedMessageId={selectedMessageForReaction?.id}
+              onSelectMessage={(msg) =>
+                setSelectedMessageForReaction((prev) => (prev?.id === msg.id ? null : msg))
+              }
               onReact={handleReact}
               onVotePoll={handleVotePoll}
               onTogglePin={handleTogglePin}
               onReplyTo={setReplyingTo}
               onOpenImageLightbox={(url, caption) => setLightboxImage({ url, caption })}
+              onMarkAsRead={handleMarkAsRead}
             />
 
             {/* Typing Indicator */}
@@ -722,7 +867,12 @@ export default function App() {
               onSendMessage={handleSendMessage}
               onOpenVoiceRecorder={() => setIsVoiceRecorderOpen(true)}
               onOpenCreatePoll={() => setIsCreatePollOpen(true)}
+              onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
               channelName={currentChannel.name}
+              selectedMessage={selectedMessageForReaction}
+              onClearSelectedMessage={() => setSelectedMessageForReaction(null)}
+              onReact={handleReact}
+              latestMessage={currentChannelMessages[currentChannelMessages.length - 1] || null}
             />
           </div>
         )}
@@ -841,6 +991,30 @@ export default function App() {
         onSelectActiveMember={setActiveMemberId}
         onUpdateMember={handleUpdateMember}
         onAddMember={handleAddMember}
+        onToggleChatAccess={handleToggleChatAccess}
+        onDeleteMember={handleDeleteMember}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+        onAdminLogout={() => setIsAdminLoggedIn(false)}
+        onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+      />
+
+      <DailyCheckInModal
+        isOpen={isDailyCheckInOpen}
+        onClose={() => setIsDailyCheckInOpen(false)}
+        activeMember={activeMember}
+        onSaveCheckIn={handleSaveDailyCheckIn}
+      />
+
+      <AdminLoginModal
+        isOpen={isAdminLoginModalOpen}
+        onClose={() => setIsAdminLoginModalOpen(false)}
+        adminCredentials={adminCredentials}
+        onLoginSuccess={() => setIsAdminLoggedIn(true)}
+        onUpdateCredentials={setAdminCredentials}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAdminLogout={() => setIsAdminLoggedIn(false)}
+        mainMember={members.find(m => m.isAdmin) || members[0]}
       />
 
       <CreatePollModal

@@ -19,7 +19,7 @@ import {
   Edit2,
   X
 } from 'lucide-react';
-import { Channel, FamilyMember } from '../types/family';
+import { Channel, FamilyMember, Message } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
@@ -32,8 +32,12 @@ interface SidebarProps {
   onAddChannel: (name: string, description: string) => void;
   members: FamilyMember[];
   activeMemberId: string;
+  messages?: Message[];
+  onOpenDailyCheckIn?: () => void;
   onOpenMembersModal: () => void;
   onOpenNoticeBoard: () => void;
+  isAdminLoggedIn?: boolean;
+  onOpenAdminLogin?: () => void;
   isLivelyMode: boolean;
   onToggleLivelyMode: () => void;
   onResetData: () => void;
@@ -52,8 +56,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddChannel,
   members,
   activeMemberId,
+  messages = [],
+  onOpenDailyCheckIn,
   onOpenMembersModal,
   onOpenNoticeBoard,
+  isAdminLoggedIn,
+  onOpenAdminLogin,
   isLivelyMode,
   onToggleLivelyMode,
   onResetData,
@@ -67,6 +75,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newChannelDesc, setNewChannelDesc] = useState('');
 
   const activeMember = members.find((m) => m.id === activeMemberId) || members[0];
+
+  const getUnreadCount = (channelId: string) => {
+    return messages.filter(
+      (m) =>
+        m.channelId === channelId &&
+        m.senderId !== activeMemberId &&
+        (!m.readBy || !m.readBy.includes(activeMemberId))
+    ).length;
+  };
 
   const handleSaveFamilyName = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,27 +198,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
           <div
             onClick={onOpenMembersModal}
-            className="flex items-center gap-2.5 cursor-pointer group flex-1 mr-2"
-            title="Switch profile"
+            className="flex items-center gap-2.5 cursor-pointer group flex-1 mr-2 min-w-0"
+            title="Switch profile & permissions"
           >
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${activeMember.avatarColor}`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${activeMember.avatarColor}`}>
               {activeMember.name.charAt(0)}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-emerald-700">
-                {activeMember.name}
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-emerald-700">
+                  {activeMember.name}
+                </p>
+                {activeMember.isAdmin && (
+                  <span className="text-[9px] bg-indigo-100 text-indigo-700 font-bold px-1.5 py-0.2 rounded shrink-0">
+                    Admin
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                {activeMember.hasChatAccess ? (
+                  <span>{activeMember.role}</span>
+                ) : (
+                  <span className="text-rose-600 font-semibold">Chat restricted</span>
+                )}
               </p>
-              <p className="text-[10px] text-slate-400 truncate">
-                {activeMember.role}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenAdminLogin && (
+              <button
+                onClick={onOpenAdminLogin}
+                className={`p-1.5 rounded-lg text-xs transition-colors ${
+                  isAdminLoggedIn
+                    ? 'text-emerald-700 bg-emerald-100/70 hover:bg-emerald-100'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
+                }`}
+                title={isAdminLoggedIn ? 'Admin mode active' : 'Log in as main member'}
+              >
+                <Shield className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              onClick={onOpenMembersModal}
+              className="text-[11px] font-medium text-emerald-700 bg-emerald-100/60 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors"
+            >
+              Switch
+            </button>
+          </div>
+        </div>
+
+        {/* Daily Check-in Quick Card for Active Member */}
+        <div className="px-4 py-2.5 bg-gradient-to-r from-amber-500/10 via-rose-500/5 to-transparent border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg shrink-0">{activeMember.moodEmoji || '☀️'}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-800 truncate">
+                  {activeMember.shortStatus || 'Not checked in'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 truncate">
+                {activeMember.lastCheckInTime ? `Checked in ${activeMember.lastCheckInTime}` : "Tap to share today's status"}
               </p>
             </div>
           </div>
 
           <button
-            onClick={onOpenMembersModal}
-            className="text-[11px] font-medium text-emerald-700 bg-emerald-100/60 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors shrink-0"
+            onClick={onOpenDailyCheckIn}
+            className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-800 text-[11px] font-semibold border border-slate-200 rounded-lg shadow-2xs transition-colors shrink-0 flex items-center gap-1 active:scale-95"
+            title="Daily Check-in (Mood & Status)"
           >
-            Switch
+            <span>Check In</span>
           </button>
         </div>
 
@@ -318,6 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-0.5">
               {groupChannels.map((ch) => {
                 const isActive = activeTab === 'chat' && activeChannelId === ch.id;
+                const unread = getUnreadCount(ch.id);
                 return (
                   <button
                     key={ch.id}
@@ -336,6 +406,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span className="text-slate-400">{getChannelIcon(ch.id)}</span>
                       <span className="truncate">{ch.name}</span>
                     </div>
+
+                    {unread > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-mono text-[10px] font-bold shrink-0 ml-1.5 shadow-2xs">
+                        {unread}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -352,6 +428,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-0.5">
               {directChannels.map((ch) => {
                 const isActive = activeTab === 'chat' && activeChannelId === ch.id;
+                const unread = getUnreadCount(ch.id);
                 return (
                   <button
                     key={ch.id}
@@ -370,6 +447,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <span className="text-slate-400">{getChannelIcon(ch.id)}</span>
                       <span className="truncate">{ch.name}</span>
                     </div>
+
+                    {unread > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-mono text-[10px] font-bold shrink-0 ml-1.5 shadow-2xs">
+                        {unread}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -395,12 +478,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div
                   key={m.id}
                   onClick={onOpenMembersModal}
-                  className="px-2 py-1.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between"
+                  className="px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between gap-2 group"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="relative">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="relative shrink-0">
                       <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${m.avatarColor}`}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold ${m.avatarColor}`}
                       >
                         {m.name.charAt(0)}
                       </div>
@@ -409,17 +492,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-800 truncate">
-                        {m.name}
-                      </p>
-                      <p className="text-[10px] text-slate-400 truncate">
-                        {m.statusEmoji} {m.status}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-emerald-700">
+                          {m.name}
+                        </p>
+                        {/* Daily Check-in mood emoji and short status ('At Home', 'Commuting', 'Busy') */}
+                        {m.shortStatus ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                            <span>{m.moodEmoji || '😊'}</span>
+                            <span>{m.shortStatus}</span>
+                          </span>
+                        ) : (
+                          m.statusEmoji && (
+                            <span className="text-[11px] shrink-0">{m.statusEmoji}</span>
+                          )
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                        {m.relationship || m.role}
+                        {m.lastCheckInTime && (
+                          <>
+                            <span aria-hidden="true"> · </span>
+                            <span>{m.lastCheckInTime}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
 
                   {m.batteryLevel !== undefined && (
-                    <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1">
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0">
                       {m.batteryLevel}%
                     </span>
                   )}

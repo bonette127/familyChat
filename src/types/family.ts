@@ -6,11 +6,28 @@ export interface FamilyMember {
   avatarImage?: string;
   status: string;
   statusEmoji: string;
+  moodEmoji?: string; // Mood emoji selected in Daily Check-in (e.g. 😊, ☕, 😴, 🥳)
+  shortStatus?: string; // Short status selected in Daily Check-in (e.g. 'At Home', 'Commuting', 'Busy')
+  lastCheckInTime?: string; // Timestamp of latest Daily Check-in
+  checkInNote?: string; // Optional note accompanying daily check-in
+  relationship?: string; // Family connection to help reconnect (e.g. "Eldest Daughter", "Mother", "Cousin")
+  hometown?: string; // Current city or roots
   batteryLevel?: number;
   location?: string;
   birthday?: string;
   phone?: string;
+  email?: string;
   isOnline: boolean;
+  isAdmin?: boolean;
+  hasChatAccess: boolean; // Main member must grant this to allow chat participation
+  accessGrantedAt?: string;
+  accessGrantedBy?: string;
+}
+
+export interface AdminCredentials {
+  email: string;
+  password: string;
+  mainMemberId: string;
 }
 
 export interface PollOption {
@@ -45,6 +62,7 @@ export interface Message {
   content: string;
   timestamp: string;
   reactions: Record<string, string[]>; // emoji -> array of memberIds
+  readBy?: string[]; // member IDs who have read this message
   isPinned?: boolean;
   attachments?: Attachment[];
   poll?: PollData;
