@@ -100,3 +100,31 @@ export function playReactionPop(muted = false) {
     console.debug('Pop sound skipped', err);
   }
 }
+
+export function playSuccessCelebration(muted = false) {
+  if (muted) return;
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    // Upbeat celebratory fanfare chord arpeggio (C5 -> E5 -> G5 -> C6)
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.09);
+
+      gain.gain.setValueAtTime(0.09, now + i * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.45);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + i * 0.09);
+      osc.stop(now + i * 0.09 + 0.46);
+    });
+  } catch (err) {
+    console.debug('Celebration sound skipped', err);
+  }
+}

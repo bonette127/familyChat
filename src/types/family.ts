@@ -22,6 +22,22 @@ export interface FamilyMember {
   hasChatAccess: boolean; // Main member must grant this to allow chat participation
   accessGrantedAt?: string;
   accessGrantedBy?: string;
+  password?: string; // Login password/passcode needed for chat access
+  inviteSentAt?: string; // Timestamp when credential email was dispatched
+  inviteEmailSentTo?: string; // Target email address
+}
+
+export interface SentInviteEmail {
+  id: string;
+  memberId: string;
+  memberName: string;
+  recipientEmail: string;
+  subject: string;
+  loginPassword: string;
+  sentAt: string;
+  sentByAdminName: string;
+  hasChatAccess: boolean;
+  status: 'delivered' | 'opened';
 }
 
 export interface AdminCredentials {

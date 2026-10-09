@@ -26,7 +26,8 @@ import {
   GroceryItem, 
   Message, 
   QuickNotice,
-  AdminCredentials
+  AdminCredentials,
+  SentInviteEmail
 } from './types/family';
 
 import { 
@@ -37,7 +38,8 @@ import {
   INITIAL_MEMBERS, 
   INITIAL_MESSAGES, 
   INITIAL_NOTICES,
-  DEFAULT_ADMIN_CREDENTIALS
+  DEFAULT_ADMIN_CREDENTIALS,
+  INITIAL_SENT_EMAILS
 } from './data/initialData';
 
 import { Sidebar } from './components/Sidebar';
@@ -55,8 +57,11 @@ import { CreatePollModal } from './components/CreatePollModal';
 import { VoiceNoteRecorder } from './components/VoiceNoteRecorder';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { DailyCheckInModal } from './components/DailyCheckInModal';
+import { EmailDeliveryModal } from './components/EmailDeliveryModal';
+import { MemberLoginModal } from './components/MemberLoginModal';
+import { CongratulatoryToast, CongratulatoryNoticeData } from './components/CongratulatoryToast';
 
-import { playSendChime, playReceiveChime, playReactionPop } from './utils/audio';
+import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
 const STORAGE_KEY = 'kinfolk_family_hub_data_v1';
 
@@ -231,7 +236,27 @@ export default function App() {
   const [isVoiceRecorderOpen, setIsVoiceRecorderOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; caption?: string } | null>(null);
 
+  // Member Registration & Credentials Email States
+  const [sentInviteEmails, setSentInviteEmails] = useState<SentInviteEmail[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_sent_emails');
+      return saved ? JSON.parse(saved) : INITIAL_SENT_EMAILS;
+    } catch {
+      return INITIAL_SENT_EMAILS;
+    }
+  });
+  const [selectedEmailForPreview, setSelectedEmailForPreview] = useState<SentInviteEmail | null>(null);
+  const [isEmailDeliveryModalOpen, setIsEmailDeliveryModalOpen] = useState(false);
+  const [isMemberLoginModalOpen, setIsMemberLoginModalOpen] = useState(false);
+  const [prefilledLoginEmail, setPrefilledLoginEmail] = useState('');
+  const [membersModalTab, setMembersModalTab] = useState<'members' | 'register' | 'invites'>('members');
+  const [loginToastNotice, setLoginToastNotice] = useState<string | null>(null);
+  const [congratulatoryNotice, setCongratulatoryNotice] = useState<CongratulatoryNoticeData | null>(null);
+
   // --- Persistence Side Effects ---
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_sent_emails', JSON.stringify(sentInviteEmails));
+  }, [sentInviteEmails]);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_admin_creds', JSON.stringify(adminCredentials));
   }, [adminCredentials]);
@@ -741,15 +766,53 @@ export default function App() {
     }
   };
 
-  const handleAddMember = (newMemberData: Omit<FamilyMember, 'id'>) => {
+  const handleAddMember = (newMemberData: Omit<FamilyMember, 'id'>, sentEmail?: SentInviteEmail) => {
+    const newMemberId = `member-${Date.now()}`;
     const newMember: FamilyMember = {
       ...newMemberData,
-      id: `member-${Date.now()}`,
+      id: newMemberId,
       accessGrantedAt: newMemberData.hasChatAccess ? new Date().toISOString() : undefined,
       accessGrantedBy: newMemberData.hasChatAccess ? activeMember.name : undefined,
     };
     setMembers((prev) => [...prev, newMember]);
-    setActiveMemberId(newMember.id);
+
+    if (sentEmail) {
+      const finalizedEmail: SentInviteEmail = {
+        ...sentEmail,
+        memberId: newMemberId,
+      };
+      setSentInviteEmails((prev) => [finalizedEmail, ...prev]);
+      setSelectedEmailForPreview(finalizedEmail);
+      
+      // Congratulatory Toast Notification & Celebration Chime
+      setCongratulatoryNotice({
+        id: `congrat-${Date.now()}`,
+        memberName: newMember.name,
+        recipientEmail: finalizedEmail.recipientEmail,
+        loginPassword: finalizedEmail.loginPassword,
+        sentAt: finalizedEmail.sentAt,
+        memberId: newMemberId,
+        hasChatAccess: !!newMember.hasChatAccess,
+      });
+
+      playSuccessCelebration(isMuted);
+    } else {
+      setActiveMemberId(newMember.id);
+    }
+  };
+
+  const handleTestLoginAsMember = (memberId: string) => {
+    setActiveMemberId(memberId);
+    setActiveTab('chat');
+    const member = members.find((m) => m.id === memberId);
+    if (member) {
+      const notice = member.hasChatAccess
+        ? `Logged in as ${member.name}! Full chat messaging enabled.`
+        : `Logged in as ${member.name}. Chat access is restricted by Admin.`;
+      setLoginToastNotice(notice);
+      setTimeout(() => setLoginToastNotice(null), 5000);
+      playReceiveChime(isMuted);
+    }
   };
 
   const handleAddChannel = (name: string, description: string) => {
@@ -799,7 +862,15 @@ export default function App() {
         activeMemberId={activeMemberId}
         messages={messages}
         onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
-        onOpenMembersModal={() => setIsMembersModalOpen(true)}
+        onOpenMembersModal={() => {
+          setMembersModalTab('members');
+          setIsMembersModalOpen(true);
+        }}
+        onOpenMemberLogin={() => setIsMemberLoginModalOpen(true)}
+        onOpenRegisterModal={() => {
+          setMembersModalTab('register');
+          setIsMembersModalOpen(true);
+        }}
         onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
@@ -823,7 +894,16 @@ export default function App() {
               isMuted={isMuted}
               onToggleMute={() => setIsMuted(!isMuted)}
               onStartCall={() => setIsCallModalOpen(true)}
-              onOpenMembersModal={() => setIsMembersModalOpen(true)}
+              onOpenMembersModal={() => {
+                setMembersModalTab('members');
+                setIsMembersModalOpen(true);
+              }}
+              onOpenRegisterMember={() => {
+                setMembersModalTab('register');
+                setIsMembersModalOpen(true);
+              }}
+              onOpenMemberLogin={() => setIsMemberLoginModalOpen(true)}
+              sentEmailsCount={sentInviteEmails.length}
               onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
               onToggleSidebarMobile={() => setIsMobileSidebarOpen(true)}
               searchQuery={searchQuery}
@@ -1011,6 +1091,32 @@ export default function App() {
         onDeleteNotice={handleDeleteNotice}
       />
 
+      {/* Congratulatory Toast Notification with Confetti Animation */}
+      <CongratulatoryToast
+        notice={congratulatoryNotice}
+        onClose={() => setCongratulatoryNotice(null)}
+        onViewDeliveredEmail={() => {
+          if (selectedEmailForPreview) {
+            setIsEmailDeliveryModalOpen(true);
+          }
+        }}
+        onTestLogin={(memberId) => handleTestLoginAsMember(memberId)}
+      />
+
+      {/* Login Toast Notice */}
+      {loginToastNotice && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2.5 border border-slate-700 text-xs font-semibold animate-in fade-in slide-in-from-top-2">
+          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{loginToastNotice}</span>
+          <button
+            onClick={() => setLoginToastNotice(null)}
+            className="text-slate-400 hover:text-white ml-2 text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <FamilyMembersModal
         isOpen={isMembersModalOpen}
         onClose={() => setIsMembersModalOpen(false)}
@@ -1025,6 +1131,45 @@ export default function App() {
         onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
         onAdminLogout={() => setIsAdminLoggedIn(false)}
         onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+        sentInviteEmails={sentInviteEmails}
+        onOpenEmailPreview={(email) => {
+          setSelectedEmailForPreview(email);
+          setIsEmailDeliveryModalOpen(true);
+        }}
+        onOpenMemberLoginModal={(email) => {
+          setPrefilledLoginEmail(email || '');
+          setIsMemberLoginModalOpen(true);
+        }}
+        initialTab={membersModalTab}
+        onTestLoginAsMember={handleTestLoginAsMember}
+      />
+
+      {/* Delivered Email Preview & Credentials Modal */}
+      <EmailDeliveryModal
+        isOpen={isEmailDeliveryModalOpen}
+        onClose={() => setIsEmailDeliveryModalOpen(false)}
+        emailData={selectedEmailForPreview}
+        familyName={familyName}
+        onTestLoginAsMember={handleTestLoginAsMember}
+        onOpenMemberLoginModal={(email) => {
+          setPrefilledLoginEmail(email);
+          setIsMemberLoginModalOpen(true);
+        }}
+      />
+
+      {/* Family Member Login Modal */}
+      <MemberLoginModal
+        isOpen={isMemberLoginModalOpen}
+        onClose={() => setIsMemberLoginModalOpen(false)}
+        members={members}
+        activeMemberId={activeMemberId}
+        initialEmail={prefilledLoginEmail}
+        onLoginSuccess={handleTestLoginAsMember}
+        onOpenEmailPreview={(email) => {
+          setSelectedEmailForPreview(email);
+          setIsEmailDeliveryModalOpen(true);
+        }}
+        sentInviteEmails={sentInviteEmails}
       />
 
       <DailyCheckInModal

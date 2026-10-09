@@ -12,7 +12,9 @@ import {
   Sparkles,
   ChevronDown,
   Shield,
-  KeyRound
+  KeyRound,
+  Mail,
+  LogIn
 } from 'lucide-react';
 import { Channel, FamilyMember } from '../types/family';
 import { DailyFamilyInsight } from './DailyFamilyInsight';
@@ -33,6 +35,9 @@ interface ChatHeaderProps {
   onOpenAdminLogin?: () => void;
   onOpenDailyCheckIn?: () => void;
   onInsertPromptToChat?: (promptText: string) => void;
+  onOpenRegisterMember?: () => void;
+  onOpenMemberLogin?: () => void;
+  sentEmailsCount?: number;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -51,6 +56,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenAdminLogin,
   onOpenDailyCheckIn,
   onInsertPromptToChat,
+  onOpenRegisterMember,
+  onOpenMemberLogin,
+  sentEmailsCount = 0,
 }) => {
   const [isPinnedDismissed, setIsPinnedDismissed] = useState(false);
 
@@ -123,6 +131,30 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-emerald-600" />}
           </button>
+
+          {/* Invite Member Action */}
+          {onOpenRegisterMember && (
+            <button
+              onClick={onOpenRegisterMember}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-2xs"
+              title="Register a new family member & send credentials email"
+            >
+              <Mail className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Invite Member</span>
+            </button>
+          )}
+
+          {/* Member Sign In Action */}
+          {onOpenMemberLogin && (
+            <button
+              onClick={onOpenMemberLogin}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors border border-slate-200"
+              title="Sign in with member credentials"
+            >
+              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* Notice Board Button */}
           <button

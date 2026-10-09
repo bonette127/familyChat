@@ -26,3 +26,43 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.6);
 }
+
+/* Celebration & Congratulatory Animations */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-10px) rotate(0deg) scale(0.7);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120px) rotate(720deg) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes celebrationPop {
+  0% {
+    transform: translate(-50%, -20px) scale(0.85);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, 4px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shrink {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+.animate-celebration-pop {
+  animation: celebrationPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

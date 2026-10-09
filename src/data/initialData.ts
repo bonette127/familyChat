@@ -1,10 +1,37 @@
-import { AdminCredentials, Channel, ChoreItem, FamilyEvent, FamilyMember, GroceryItem, Message, QuickNotice } from '../types/family';
+import { AdminCredentials, Channel, ChoreItem, FamilyEvent, FamilyMember, GroceryItem, Message, QuickNotice, SentInviteEmail } from '../types/family';
 
 export const DEFAULT_ADMIN_CREDENTIALS: AdminCredentials = {
   email: 'admin@kinfolk.family',
   password: 'admin',
   mainMemberId: 'mary',
 };
+
+export const INITIAL_SENT_EMAILS: SentInviteEmail[] = [
+  {
+    id: 'invite-mom',
+    memberId: 'mom',
+    memberName: 'Mom (Sarah)',
+    recipientEmail: 'sarah.mom@kinfolk.family',
+    subject: '🏡 Welcome to the Kinfolk Family Chat — Your Login Credentials',
+    loginPassword: 'family123',
+    sentAt: 'Oct 01, 2026, 09:00 AM',
+    sentByAdminName: 'Mary',
+    hasChatAccess: true,
+    status: 'delivered',
+  },
+  {
+    id: 'invite-dad',
+    memberId: 'dad',
+    memberName: 'Dad (David)',
+    recipientEmail: 'david.dad@kinfolk.family',
+    subject: '🏡 Welcome to the Kinfolk Family Chat — Your Login Credentials',
+    loginPassword: 'family123',
+    sentAt: 'Oct 01, 2026, 09:05 AM',
+    sentByAdminName: 'Mary',
+    hasChatAccess: true,
+    status: 'delivered',
+  },
+];
 
 export const INITIAL_MEMBERS: FamilyMember[] = [
   {
@@ -25,6 +52,7 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     birthday: 'Nov 12',
     phone: '+1 (555) 234-5678',
     email: 'admin@kinfolk.family',
+    password: 'admin',
     isOnline: true,
     isAdmin: true,
     hasChatAccess: true,
@@ -49,6 +77,7 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     birthday: 'Aug 24',
     phone: '+1 (555) 876-5432',
     email: 'sarah.mom@kinfolk.family',
+    password: 'family123',
     isOnline: true,
     isAdmin: false,
     hasChatAccess: true,
@@ -73,6 +102,7 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     birthday: 'Jan 19',
     phone: '+1 (555) 345-6789',
     email: 'david.dad@kinfolk.family',
+    password: 'family123',
     isOnline: true,
     isAdmin: false,
     hasChatAccess: true,
@@ -97,6 +127,7 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     birthday: 'Apr 03',
     phone: '+1 (555) 456-7890',
     email: 'evelyn.grandma@kinfolk.family',
+    password: 'family123',
     isOnline: false,
     isAdmin: false,
     hasChatAccess: true,
@@ -121,6 +152,7 @@ export const INITIAL_MEMBERS: FamilyMember[] = [
     birthday: 'Sep 29',
     phone: '+1 (555) 567-8901',
     email: 'liam.brother@kinfolk.family',
+    password: 'family123',
     isOnline: true,
     isAdmin: false,
     hasChatAccess: true,

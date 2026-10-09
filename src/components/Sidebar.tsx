@@ -18,15 +18,16 @@ import {
   Shield,
   Edit2,
   X,
-  FolderHeart
+  FolderHeart,
+  LogIn
 } from 'lucide-react';
 import { Channel, FamilyMember, Message } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'media' | 'lists' | 'calendar';
-  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'lists' | 'calendar') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -36,6 +37,8 @@ interface SidebarProps {
   messages?: Message[];
   onOpenDailyCheckIn?: () => void;
   onOpenMembersModal: () => void;
+  onOpenMemberLogin?: () => void;
+  onOpenRegisterModal?: () => void;
   onOpenNoticeBoard: () => void;
   isAdminLoggedIn?: boolean;
   onOpenAdminLogin?: () => void;
@@ -60,6 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   messages = [],
   onOpenDailyCheckIn,
   onOpenMembersModal,
+  onOpenMemberLogin,
+  onOpenRegisterModal,
   onOpenNoticeBoard,
   isAdminLoggedIn,
   onOpenAdminLogin,
@@ -238,6 +243,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={isAdminLoggedIn ? 'Admin mode active' : 'Log in as main member'}
               >
                 <Shield className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {onOpenMemberLogin && (
+              <button
+                onClick={onOpenMemberLogin}
+                className="text-[11px] font-medium text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 shadow-2xs"
+                title="Sign in with member credentials"
+              >
+                <LogIn className="w-3 h-3 text-emerald-600" />
+                <span>Sign In</span>
               </button>
             )}
 
@@ -481,12 +497,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                 Family Status ({members.length})
               </span>
-              <button
-                onClick={onOpenMembersModal}
-                className="text-[10px] text-emerald-600 hover:underline font-medium"
-              >
-                Manage
-              </button>
+              <div className="flex items-center gap-1.5">
+                {onOpenRegisterModal && (
+                  <button
+                    onClick={onOpenRegisterModal}
+                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-0.5"
+                    title="Register a family member and send credentials email"
+                  >
+                    <span>+ Invite</span>
+                  </button>
+                )}
+                <button
+                  onClick={onOpenMembersModal}
+                  className="text-[10px] text-slate-500 hover:text-slate-800 hover:underline font-medium"
+                >
+                  Manage
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">
