@@ -499,6 +499,26 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             isMe ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'
           }`}
         >
+          {/* Quick React Direct Common Family Emojis (No menu needed) */}
+          <div className="flex items-center gap-0.5 border-r border-slate-200 pr-1 mr-0.5">
+            {['❤️', '😂', '👍', '🎉'].map((emoji) => {
+              const hasReacted = message.reactions[emoji]?.includes(activeMemberId);
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onReact(message.id, emoji)}
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-transform hover:scale-130 active:scale-90 ${
+                    hasReacted ? 'bg-amber-100 font-bold scale-110' : 'hover:bg-slate-100'
+                  }`}
+                  title={`Quick React: ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              );
+            })}
+          </div>
+
           {/* Quick React Select Button */}
           {onSelectForReaction && (
             <button
@@ -508,18 +528,18 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   ? 'text-amber-600 bg-amber-50 font-bold'
                   : 'text-slate-500 hover:text-amber-600 hover:bg-slate-100'
               }`}
-              title={isSelected ? 'Selected for quick reaction' : 'Select message for quick reaction'}
+              title={isSelected ? 'Selected for quick reaction bar' : 'Select message for input reaction bar'}
             >
               <Heart className="w-3.5 h-3.5" />
             </button>
           )}
 
-          {/* Quick Emoji Trigger */}
+          {/* More Emojis Trigger */}
           <div className="relative">
             <button
               onClick={() => setShowReactionMenu(!showReactionMenu)}
               className="p-1 rounded-md text-slate-500 hover:text-amber-500 hover:bg-slate-100 transition-colors"
-              title="Add reaction"
+              title="More emojis"
             >
               <Smile className="w-3.5 h-3.5" />
             </button>

@@ -229,6 +229,13 @@ export const INITIAL_MESSAGES: Message[] = [
     timestamp: '2026-10-02T09:28:00Z',
     reactions: { '❤️': ['mary', 'liam', 'mom'] },
     readBy: ['grandma', 'mary', 'liam', 'mom'],
+    attachments: [
+      {
+        type: 'audio',
+        duration: 14,
+        caption: 'Grandma sharing memories of our first camping weekend',
+      },
+    ],
   },
   {
     id: 'msg-5',
@@ -243,6 +250,22 @@ export const INITIAL_MESSAGES: Message[] = [
         type: 'image',
         url: '/src/assets/images/family_puppy_park_1791015930194.jpg',
         caption: 'Buster was completely tuckered out in the sunny yard!',
+      },
+    ],
+  },
+  {
+    id: 'msg-6',
+    channelId: 'general',
+    senderId: 'liam',
+    content: 'Listen to Buster howling when the ice cream truck drove by this afternoon! 🍦🐶',
+    timestamp: '2026-10-02T10:45:00Z',
+    reactions: { '😂': ['mary', 'mom', 'dad'], '❤️': ['grandma'] },
+    readBy: ['liam', 'mary', 'mom', 'dad', 'grandma'],
+    attachments: [
+      {
+        type: 'audio',
+        duration: 9,
+        caption: 'Buster singing along with the neighborhood ice cream truck chime',
       },
     ],
   },

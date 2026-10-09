@@ -52,7 +52,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenDailyCheckIn,
   onInsertPromptToChat,
 }) => {
-  const [isSearching, setIsSearching] = useState(false);
   const [isPinnedDismissed, setIsPinnedDismissed] = useState(false);
 
   return (
@@ -84,37 +83,27 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {/* Right Actions Zone */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
-          {/* Search bar expandable */}
-          {isSearching ? (
-            <div className="flex items-center bg-slate-100 rounded-xl px-2.5 py-1 text-xs border border-slate-200 animate-in fade-in duration-150">
-              <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search channel..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="bg-transparent focus:outline-none text-slate-800 w-28 sm:w-44 text-xs"
-                autoFocus
-              />
+          {/* Persistent Text Search Input */}
+          <div className="flex items-center bg-slate-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-900 focus-within:border-transparent rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 transition-all w-28 sm:w-44 md:w-56 shrink-0">
+            <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
+            <input
+              type="text"
+              placeholder={`Search #${currentChannel.name}...`}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="bg-transparent focus:outline-none text-slate-800 w-full text-xs placeholder:text-slate-400"
+            />
+            {searchQuery && (
               <button
-                onClick={() => {
-                  setIsSearching(false);
-                  onSearchChange('');
-                }}
-                className="text-slate-400 hover:text-slate-600 ml-1"
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="text-slate-400 hover:text-slate-600 ml-1 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
+                title="Clear search"
               >
                 ✕
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsSearching(true)}
-              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              title="Search messages"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          )}
+            )}
+          </div>
 
           {/* Group Call Button */}
           <button

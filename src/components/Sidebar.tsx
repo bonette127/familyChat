@@ -17,15 +17,16 @@ import {
   ChevronRight,
   Shield,
   Edit2,
-  X
+  X,
+  FolderHeart
 } from 'lucide-react';
 import { Channel, FamilyMember, Message } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'lists' | 'calendar';
-  onSelectTab: (tab: 'chat' | 'album' | 'lists' | 'calendar') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'lists' | 'calendar';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'lists' | 'calendar') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -304,6 +305,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Camera className="w-4 h-4" />
             <span>Memories & Scrapbook</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('media');
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              activeTab === 'media'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <FolderHeart className="w-4 h-4 text-rose-500" />
+            <span>Shared Media & Voice</span>
           </button>
 
           <button

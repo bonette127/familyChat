@@ -13,7 +13,8 @@ import {
   Users, 
   X,
   Volume2,
-  Sparkles
+  Sparkles,
+  FolderHeart
 } from 'lucide-react';
 
 import { 
@@ -44,6 +45,7 @@ import { ChatHeader } from './components/ChatHeader';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { FamilyAlbumTab, PhotoMemory } from './components/FamilyAlbumTab';
+import { SharedMediaTab } from './components/SharedMediaTab';
 import { ListTab } from './components/ListTab';
 import { CalendarTab } from './components/CalendarTab';
 import { CallModal } from './components/CallModal';
@@ -97,7 +99,7 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'lists' | 'calendar'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'lists' | 'calendar'>('chat');
 
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -887,6 +889,22 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'media' && (
+          <SharedMediaTab
+            messages={messages}
+            channels={channels}
+            members={members}
+            activeMemberId={activeMemberId}
+            onOpenImageLightbox={(url, caption) => setLightboxImage({ url, caption })}
+            onNavigateToMessage={(channelId, messageId) => {
+              setActiveChannelId(channelId);
+              setActiveTab('chat');
+              const targetMsg = messages.find((m) => m.id === messageId);
+              if (targetMsg) setSelectedMessageForReaction(targetMsg);
+            }}
+          />
+        )}
+
         {activeTab === 'lists' && (
           <ListTab
             members={members}
@@ -913,16 +931,26 @@ export default function App() {
           />
         )}
 
-        {/* Mobile Fixed Bottom Navigation Bar (Pattern 1 from mobile touch guidelines) */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-5 items-center px-1">
+        {/* Mobile Fixed Bottom Navigation Bar */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-6 items-center px-1">
           <button
             onClick={() => setActiveTab('chat')}
             className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
               activeTab === 'chat' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Chat</span>
+            <MessageCircle className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Chat</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('media')}
+            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
+              activeTab === 'media' ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <FolderHeart className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Media</span>
           </button>
 
           <button
@@ -931,8 +959,8 @@ export default function App() {
               activeTab === 'album' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <Camera className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Moments</span>
+            <Camera className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Moments</span>
           </button>
 
           <button
@@ -941,8 +969,8 @@ export default function App() {
               activeTab === 'lists' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Lists</span>
+            <ShoppingCart className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Lists</span>
           </button>
 
           <button
@@ -951,16 +979,16 @@ export default function App() {
               activeTab === 'calendar' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <Calendar className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Calendar</span>
+            <Calendar className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Calendar</span>
           </button>
 
           <button
             onClick={() => setIsMembersModalOpen(true)}
             className="flex flex-col items-center justify-center h-full min-h-[44px] text-slate-400 hover:text-slate-600"
           >
-            <Users className="w-5 h-5" />
-            <span className="text-[10px] mt-1">Family</span>
+            <Users className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Family</span>
           </button>
         </nav>
 
