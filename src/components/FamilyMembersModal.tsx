@@ -27,9 +27,11 @@ import {
   LogIn,
   PartyPopper,
   CheckCircle2,
-  BarChart2
+  BarChart2,
+  Crown,
+  AlertCircle
 } from 'lucide-react';
-import { FamilyMember, SentInviteEmail } from '../types/family';
+import { FamilyMember, SentInviteEmail, DailyCheckInRecord, FamilyUnit, SecurityAuditLog } from '../types/family';
 import { FamilyEngagementAnalytics } from './FamilyEngagementAnalytics';
 
 interface FamilyMembersModalProps {
@@ -49,9 +51,17 @@ interface FamilyMembersModalProps {
   sentInviteEmails?: SentInviteEmail[];
   onOpenEmailPreview?: (email: SentInviteEmail) => void;
   onOpenMemberLoginModal?: (prefilledEmail?: string) => void;
-  initialTab?: 'members' | 'register' | 'invites' | 'analytics';
+  initialTab?: 'members' | 'register' | 'units' | 'invites' | 'analytics';
   onTestLoginAsMember?: (memberId: string) => void;
+  checkInHistory?: DailyCheckInRecord[];
+  onOpenExportModal?: () => void;
+  familyUnits?: FamilyUnit[];
+  onAddFamilyUnit?: (name: string, description: string, leaderId?: string) => void;
+  onAppointLeader?: (unitId: string, memberId: string) => void;
+  securityLogs?: SecurityAuditLog[];
+  onToggleOnlinePresence?: (memberId: string) => void;
 }
+
 
 export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
   isOpen,
@@ -72,8 +82,15 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
   onOpenMemberLoginModal,
   initialTab = 'members',
   onTestLoginAsMember,
+  checkInHistory,
+  onOpenExportModal,
+  familyUnits = [],
+  onAddFamilyUnit,
+  onAppointLeader,
+  securityLogs = [],
+  onToggleOnlinePresence,
 }) => {
-  const [activeTab, setActiveTab] = useState<'members' | 'register' | 'invites' | 'analytics'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'members' | 'register' | 'units' | 'invites' | 'analytics'>(initialTab);
   const [isEditingSelf, setIsEditingSelf] = useState(false);
 
   // Sync initialTab when modal opens
@@ -108,6 +125,16 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
   const [newColor, setNewColor] = useState('bg-teal-500');
   const [grantImmediateAccess, setGrantImmediateAccess] = useState(true);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Unit assignment states
+  const [newUnitId, setNewUnitId] = useState<string>(() => {
+    return activeMember.familyUnitId || (familyUnits[0]?.id || 'unit-central');
+  });
+  const [appointAsLeader, setAppointAsLeader] = useState<boolean>(false);
+  const [memberPresenceFilter, setMemberPresenceFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [memberUnitFilter, setMemberUnitFilter] = useState<string>('all');
+  const [appointingUnitId, setAppointingUnitId] = useState<string | null>(null);
+  const [appointingLeaderId, setAppointingLeaderId] = useState<string>('');
 
   // Congratulatory registration success state
   const [registrationSuccessData, setRegistrationSuccessData] = useState<{
@@ -146,6 +173,9 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
     const passwordToUse = newPassword.trim() || generatePassword();
     const tempMemberId = `member-${Date.now()}`;
 
+    const targetUnit = familyUnits.find((u) => u.id === newUnitId) || familyUnits[0];
+    const isAppointedAsUnitLeader = activeMember.isAdmin ? appointAsLeader : false;
+
     const newMemberData: Omit<FamilyMember, 'id'> = {
       name: newName.trim(),
       role: newRole.trim(),
@@ -159,13 +189,19 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
       moodEmoji: '😊',
       shortStatus: 'At Home',
       lastCheckInTime: 'Just registered',
+      lastActiveTime: 'Active now',
       batteryLevel: 100,
       location: newHometown.trim() || 'Home',
       isOnline: true,
       isAdmin: false,
+      isLeader: isAppointedAsUnitLeader,
+      familyUnitId: targetUnit?.id,
+      familyUnitName: targetUnit?.name,
+      addedByLeaderId: activeMember.id,
+      addedByLeaderName: activeMember.name,
       hasChatAccess: grantImmediateAccess,
       accessGrantedAt: grantImmediateAccess ? new Date().toISOString() : undefined,
-      accessGrantedBy: grantImmediateAccess ? mainMember.name : undefined,
+      accessGrantedBy: activeMember.name,
       inviteSentAt: new Date().toLocaleString(),
       inviteEmailSentTo: emailToSend,
     };
@@ -175,15 +211,20 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
       memberId: tempMemberId,
       memberName: newName.trim(),
       recipientEmail: emailToSend,
-      subject: `🏡 Welcome to the Kinfolk Family Chat — Your Login Credentials`,
+      subject: `🏡 Welcome to ${targetUnit?.name || 'Family Chat'} — Your Login Credentials`,
       loginPassword: passwordToUse,
       sentAt: new Date().toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      sentByAdminName: mainMember.name,
+      sentByAdminName: activeMember.isAdmin ? `${mainMember.name} (Admin)` : `${activeMember.name} (Unit Leader)`,
+      familyUnitName: targetUnit?.name,
       hasChatAccess: grantImmediateAccess,
       status: 'delivered',
     };
 
     onAddMember(newMemberData, sentEmail);
+
+    if (isAppointedAsUnitLeader && onAppointLeader && targetUnit) {
+      onAppointLeader(targetUnit.id, tempMemberId);
+    }
 
     // Set celebratory congratulatory feedback
     setRegistrationSuccessData({
@@ -276,6 +317,26 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
           >
             <Plus className="w-3.5 h-3.5 text-emerald-500" />
             <span>Register & Invite</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('units');
+              setRegistrationSuccessData(null);
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+              activeTab === 'units'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span>Units & Leaders</span>
+            {familyUnits.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${activeTab === 'units' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {familyUnits.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -1016,9 +1077,11 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
             <div className="space-y-4">
               <FamilyEngagementAnalytics
                 members={members}
+                checkInHistory={checkInHistory}
                 isAdminLoggedIn={isAdminLoggedIn}
                 onOpenRegisterMember={() => setActiveTab('register')}
                 onOpenCheckInModal={onOpenDailyCheckIn}
+                onOpenExportModal={onOpenExportModal}
               />
             </div>
           )}

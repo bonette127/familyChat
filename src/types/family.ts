@@ -1,3 +1,36 @@
+export interface FamilyUnit {
+  id: string;
+  name: string; // e.g. "Central Household", "North Branch Unit"
+  description?: string;
+  leaderId?: string; // Appointed leader member ID
+  leaderName?: string;
+  leaderEmail?: string;
+  appointedAt?: string;
+  appointedBy?: string; // Admin member ID
+  color?: string; // e.g. 'bg-emerald-500'
+  createdAt: string;
+}
+
+export interface SecurityAuditLog {
+  id: string;
+  timestamp: string;
+  action:
+    | 'APPOINT_LEADER'
+    | 'REVOKE_LEADER'
+    | 'CREATE_UNIT'
+    | 'ADD_MEMBER'
+    | 'REMOVE_MEMBER'
+    | 'GRANT_CHAT_ACCESS'
+    | 'REVOKE_CHAT_ACCESS'
+    | 'RESET_PASSWORD'
+    | 'SYSTEM_RESET';
+  performedById: string;
+  performedByName: string;
+  targetId?: string;
+  targetName?: string;
+  details: string;
+}
+
 export interface FamilyMember {
   id: string;
   name: string;
@@ -9,6 +42,7 @@ export interface FamilyMember {
   moodEmoji?: string; // Mood emoji selected in Daily Check-in (e.g. 😊, ☕, 😴, 🥳)
   shortStatus?: string; // Short status selected in Daily Check-in (e.g. 'At Home', 'Commuting', 'Busy')
   lastCheckInTime?: string; // Timestamp of latest Daily Check-in
+  lastActiveTime?: string; // e.g. 'Active now', '10m ago', 'Yesterday'
   checkInNote?: string; // Optional note accompanying daily check-in
   relationship?: string; // Family connection to help reconnect (e.g. "Eldest Daughter", "Mother", "Cousin")
   hometown?: string; // Current city or roots
@@ -17,9 +51,14 @@ export interface FamilyMember {
   birthday?: string;
   phone?: string;
   email?: string;
-  isOnline: boolean;
-  isAdmin?: boolean;
-  hasChatAccess: boolean; // Main member must grant this to allow chat participation
+  isOnline: boolean; // Active vs Inactive indicator
+  isAdmin?: boolean; // Grand Admin role
+  isLeader?: boolean; // Appointed Unit Leader role
+  familyUnitId?: string; // ID of the Family Unit they belong to
+  familyUnitName?: string; // Name of the Family Unit
+  addedByLeaderId?: string; // Leader who added this member
+  addedByLeaderName?: string;
+  hasChatAccess: boolean; // Main member or Unit Leader must grant this to allow chat participation
   accessGrantedAt?: string;
   accessGrantedBy?: string;
   password?: string; // Login password/passcode needed for chat access
@@ -36,6 +75,7 @@ export interface SentInviteEmail {
   loginPassword: string;
   sentAt: string;
   sentByAdminName: string;
+  familyUnitName?: string;
   hasChatAccess: boolean;
   status: 'delivered' | 'opened';
 }
@@ -135,3 +175,20 @@ export interface QuickNotice {
   iconName: string;
   category: string;
 }
+
+export interface DailyCheckInRecord {
+  id: string;
+  memberId: string;
+  memberName: string;
+  avatarColor: string;
+  moodEmoji: string;
+  moodLabel: string;
+  moodScore: number; // Scale 1 to 10
+  shortStatus: string;
+  note?: string;
+  dateStr: string; // YYYY-MM-DD
+  dayLabel: string; // "Mon", "Tue", etc.
+  formattedDate: string; // e.g. "Oct 13"
+  timestamp: string;
+}
+

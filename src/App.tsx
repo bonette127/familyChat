@@ -23,11 +23,14 @@ import {
   ChoreItem, 
   FamilyEvent, 
   FamilyMember, 
+  FamilyUnit,
   GroceryItem, 
   Message, 
   QuickNotice,
   AdminCredentials,
-  SentInviteEmail
+  SentInviteEmail,
+  DailyCheckInRecord,
+  SecurityAuditLog
 } from './types/family';
 
 import { 
@@ -39,7 +42,10 @@ import {
   INITIAL_MESSAGES, 
   INITIAL_NOTICES,
   DEFAULT_ADMIN_CREDENTIALS,
-  INITIAL_SENT_EMAILS
+  INITIAL_SENT_EMAILS,
+  INITIAL_CHECKIN_RECORDS,
+  INITIAL_FAMILY_UNITS,
+  INITIAL_SECURITY_LOGS
 } from './data/initialData';
 
 import { Sidebar } from './components/Sidebar';
@@ -60,10 +66,35 @@ import { DailyCheckInModal } from './components/DailyCheckInModal';
 import { EmailDeliveryModal } from './components/EmailDeliveryModal';
 import { MemberLoginModal } from './components/MemberLoginModal';
 import { CongratulatoryToast, CongratulatoryNoticeData } from './components/CongratulatoryToast';
+import { FamilyEngagementAnalytics } from './components/FamilyEngagementAnalytics';
+import { FamilySettingsModal } from './components/FamilySettingsModal';
+import { FamilyTab } from './components/FamilyTab';
+import { FamilyPresencePanel } from './components/FamilyPresencePanel';
+import { FamilyUnitsModal } from './components/FamilyUnitsModal';
 
 import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
-const STORAGE_KEY = 'kinfolk_family_hub_data_v1';
+const STORAGE_KEY = 'kinfolk_family_hub_v3_structured';
+
+// Automated purge of legacy chaotic data keys to ensure a fresh, pristine system
+try {
+  const legacyStorageKeys = [
+    'kinfolk_family_hub_data_v1',
+    'kinfolk_family_hub_data_v1_members',
+    'kinfolk_family_hub_data_v1_messages',
+    'kinfolk_family_hub_data_v1_events',
+    'kinfolk_family_hub_data_v1_groceries',
+    'kinfolk_family_hub_data_v1_chores',
+    'kinfolk_family_hub_data_v1_notices',
+    'kinfolk_family_hub_data_v1_admin_creds',
+    'kinfolk_family_hub_data_v1_sent_emails',
+    'kinfolk_family_hub_data_v1_checkin_history',
+    'kinfolk_family_hub_data_v2'
+  ];
+  legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
+} catch {
+  // Ignore storage isolation errors
+}
 
 export default function App() {
   // --- Persistent State Initialization ---
@@ -88,11 +119,32 @@ export default function App() {
   const [activeMemberId, setActiveMemberId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_active_member');
-      return saved ? JSON.parse(saved) : 'mary';
+      return saved ? JSON.parse(saved) : DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
     } catch {
-      return 'mary';
+      return DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
     }
   });
+
+  const [familyUnits, setFamilyUnits] = useState<FamilyUnit[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_family_units');
+      return saved ? JSON.parse(saved) : INITIAL_FAMILY_UNITS;
+    } catch {
+      return INITIAL_FAMILY_UNITS;
+    }
+  });
+
+  const [securityLogs, setSecurityLogs] = useState<SecurityAuditLog[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_security_logs');
+      return saved ? JSON.parse(saved) : INITIAL_SECURITY_LOGS;
+    } catch {
+      return INITIAL_SECURITY_LOGS;
+    }
+  });
+
+  const [isPresencePanelOpen, setIsPresencePanelOpen] = useState(true);
+  const [isFamilyUnitsModalOpen, setIsFamilyUnitsModalOpen] = useState(false);
 
   const [channels, setChannels] = useState<Channel[]>(() => {
     try {
@@ -104,7 +156,8 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'lists' | 'calendar'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family'>('chat');
+
 
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -248,12 +301,26 @@ export default function App() {
   const [selectedEmailForPreview, setSelectedEmailForPreview] = useState<SentInviteEmail | null>(null);
   const [isEmailDeliveryModalOpen, setIsEmailDeliveryModalOpen] = useState(false);
   const [isMemberLoginModalOpen, setIsMemberLoginModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [prefilledLoginEmail, setPrefilledLoginEmail] = useState('');
-  const [membersModalTab, setMembersModalTab] = useState<'members' | 'register' | 'invites'>('members');
+  const [membersModalTab, setMembersModalTab] = useState<'members' | 'register' | 'units' | 'invites' | 'analytics'>('members');
   const [loginToastNotice, setLoginToastNotice] = useState<string | null>(null);
   const [congratulatoryNotice, setCongratulatoryNotice] = useState<CongratulatoryNoticeData | null>(null);
 
+  // Daily Check-In History state for Mood Trends & Engagement Analytics
+  const [checkInHistory, setCheckInHistory] = useState<DailyCheckInRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_checkin_history');
+      return saved ? JSON.parse(saved) : INITIAL_CHECKIN_RECORDS;
+    } catch {
+      return INITIAL_CHECKIN_RECORDS;
+    }
+  });
+
   // --- Persistence Side Effects ---
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_checkin_history', JSON.stringify(checkInHistory));
+  }, [checkInHistory]);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_sent_emails', JSON.stringify(sentInviteEmails));
   }, [sentInviteEmails]);
@@ -303,6 +370,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_memories', JSON.stringify(memories));
   }, [memories]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_family_units', JSON.stringify(familyUnits));
+  }, [familyUnits]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_security_logs', JSON.stringify(securityLogs));
+  }, [securityLogs]);
 
   const activeMember = members.find((m) => m.id === activeMemberId) || members[0];
   const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
@@ -724,6 +799,37 @@ export default function App() {
       )
     );
 
+    // Record check-in to historical check-in data for Mood Trends analytics
+    let score = 8;
+    if (['😊', '✨', '❤️'].includes(moodEmoji)) score = 9;
+    else if (['🥳'].includes(moodEmoji)) score = 10;
+    else if (['☕', '🌿', '🍲', '🍞'].includes(moodEmoji)) score = 8;
+    else if (['💻', '🚗', '🏃', '📚'].includes(moodEmoji)) score = 7;
+    else if (['😴', '🛋️'].includes(moodEmoji)) score = 6;
+
+    const checkingMember = members.find((m) => m.id === memberId) || activeMember;
+    const dateStr = now.toISOString().slice(0, 10);
+    const dayLabel = now.toLocaleDateString([], { weekday: 'short' });
+    const formattedDate = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    const newRecord: DailyCheckInRecord = {
+      id: `ck-${Date.now()}`,
+      memberId,
+      memberName: checkingMember.name,
+      avatarColor: checkingMember.avatarColor,
+      moodEmoji,
+      moodLabel: shortStatus,
+      moodScore: score,
+      shortStatus,
+      note,
+      dateStr,
+      dayLabel,
+      formattedDate,
+      timestamp: now.toISOString(),
+    };
+
+    setCheckInHistory((prev) => [newRecord, ...prev]);
+
     playSendChime(isMuted);
 
     if (shareToChat) {
@@ -734,23 +840,22 @@ export default function App() {
     }
   };
 
-  // --- Member Handlers ---
+  // --- Member & Family Unit Handlers ---
   const handleUpdateMember = (updated: FamilyMember) => {
     setMembers((prev) =>
       prev.map((m) => (m.id === updated.id ? updated : m))
     );
   };
 
-  const handleToggleChatAccess = (memberId: string) => {
+  const handleToggleOnlinePresence = (memberId: string) => {
     setMembers((prev) =>
       prev.map((m) => {
         if (m.id === memberId) {
-          const next = !m.hasChatAccess;
+          const nextOnline = !m.isOnline;
           return {
             ...m,
-            hasChatAccess: next,
-            accessGrantedAt: next ? new Date().toISOString() : undefined,
-            accessGrantedBy: next ? activeMember.name : undefined,
+            isOnline: nextOnline,
+            lastActiveTime: nextOnline ? 'Active now' : 'Just now',
           };
         }
         return m;
@@ -758,12 +863,165 @@ export default function App() {
     );
   };
 
+  const handleToggleChatAccess = (memberId: string) => {
+    const targetMember = members.find((m) => m.id === memberId);
+    if (!targetMember) return;
+    const nextAccess = !targetMember.hasChatAccess;
+
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id === memberId) {
+          return {
+            ...m,
+            hasChatAccess: nextAccess,
+            accessGrantedAt: nextAccess ? new Date().toISOString() : undefined,
+            accessGrantedBy: nextAccess ? activeMember.name : undefined,
+          };
+        }
+        return m;
+      })
+    );
+
+    // Audit log
+    const newLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: nextAccess ? 'GRANT_CHAT_ACCESS' : 'REVOKE_CHAT_ACCESS',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (${activeMember.isAdmin ? 'Admin' : 'Leader'})`,
+      targetId: targetMember.id,
+      targetName: targetMember.name,
+      details: `${nextAccess ? 'Granted' : 'Revoked'} chat access permissions for ${targetMember.name}`,
+    };
+    setSecurityLogs((prev) => [newLog, ...prev]);
+  };
+
   const handleDeleteMember = (memberId: string) => {
-    if (memberId === 'mary') return; // Cannot delete main member
+    if (memberId === DEFAULT_ADMIN_CREDENTIALS.mainMemberId) return; // Cannot delete Grand Admin
+    const targetMember = members.find((m) => m.id === memberId);
     setMembers((prev) => prev.filter((m) => m.id !== memberId));
     if (activeMemberId === memberId) {
-      setActiveMemberId('mary');
+      setActiveMemberId(DEFAULT_ADMIN_CREDENTIALS.mainMemberId);
     }
+
+    if (targetMember) {
+      const newLog: SecurityAuditLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        action: 'REMOVE_MEMBER',
+        performedById: activeMember.id,
+        performedByName: `${activeMember.name} (${activeMember.isAdmin ? 'Admin' : 'Leader'})`,
+        targetId: targetMember.id,
+        targetName: targetMember.name,
+        details: `Removed ${targetMember.name} from family circle`,
+      };
+      setSecurityLogs((prev) => [newLog, ...prev]);
+    }
+  };
+
+  const handleAddFamilyUnit = (name: string, description: string, leaderId?: string) => {
+    const newUnitId = `unit-${Date.now()}`;
+    const leaderMember = leaderId ? members.find((m) => m.id === leaderId) : undefined;
+    
+    const newUnit: FamilyUnit = {
+      id: newUnitId,
+      name,
+      description,
+      leaderId: leaderMember?.id,
+      leaderName: leaderMember?.name,
+      leaderEmail: leaderMember?.email,
+      appointedAt: leaderMember ? new Date().toISOString() : undefined,
+      appointedBy: activeMember.name,
+      createdAt: new Date().toISOString(),
+      color: 'bg-indigo-500',
+    };
+
+    setFamilyUnits((prev) => [...prev, newUnit]);
+
+    // If leader was assigned, update member's role and unit
+    if (leaderMember) {
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === leaderMember.id
+            ? {
+                ...m,
+                isLeader: true,
+                role: 'Family Unit Leader',
+                familyUnitId: newUnitId,
+                familyUnitName: name,
+              }
+            : m
+        )
+      );
+    }
+
+    // Security audit log
+    const newLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'CREATE_UNIT',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (Admin)`,
+      targetId: newUnitId,
+      targetName: name,
+      details: `Created Family Unit "${name}"${leaderMember ? ` and appointed ${leaderMember.name} as leader` : ''}`,
+    };
+    setSecurityLogs((prev) => [newLog, ...prev]);
+  };
+
+  const handleAppointLeader = (unitId: string, memberId: string) => {
+    const targetMember = members.find((m) => m.id === memberId);
+    const targetUnit = familyUnits.find((u) => u.id === unitId);
+    if (!targetMember || !targetUnit) return;
+
+    // Update unit with leader details
+    setFamilyUnits((prev) =>
+      prev.map((u) =>
+        u.id === unitId
+          ? {
+              ...u,
+              leaderId: targetMember.id,
+              leaderName: targetMember.name,
+              leaderEmail: targetMember.email,
+              appointedAt: new Date().toISOString(),
+              appointedBy: activeMember.name,
+            }
+          : u
+      )
+    );
+
+    // Update member role and unit
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              isLeader: true,
+              role: 'Family Unit Leader',
+              familyUnitId: unitId,
+              familyUnitName: targetUnit.name,
+            }
+          : m
+      )
+    );
+
+    // Security audit log
+    const newLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'APPOINT_LEADER',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (Admin)`,
+      targetId: targetMember.id,
+      targetName: targetMember.name,
+      details: `Appointed ${targetMember.name} as Leader of ${targetUnit.name}`,
+    };
+    setSecurityLogs((prev) => [newLog, ...prev]);
+
+    // System announcement in chat
+    handleSendMessage(
+      `👑 **Leadership Update:** ${targetMember.name} has been appointed as Leader of **${targetUnit.name}**! They are now authorized to register family members for this unit.`
+    );
   };
 
   const handleAddMember = (newMemberData: Omit<FamilyMember, 'id'>, sentEmail?: SentInviteEmail) => {
@@ -775,6 +1033,21 @@ export default function App() {
       accessGrantedBy: newMemberData.hasChatAccess ? activeMember.name : undefined,
     };
     setMembers((prev) => [...prev, newMember]);
+
+    const targetUnit = familyUnits.find((u) => u.id === newMemberData.familyUnitId);
+
+    // Security audit log
+    const newLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'ADD_MEMBER',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (${activeMember.isAdmin ? 'Admin' : 'Unit Leader'})`,
+      targetId: newMemberId,
+      targetName: newMember.name,
+      details: `Registered ${newMember.name} to ${targetUnit?.name || 'Family Unit'}${sentEmail ? ' & dispatched credentials' : ''}`,
+    };
+    setSecurityLogs((prev) => [newLog, ...prev]);
 
     if (sentEmail) {
       const finalizedEmail: SentInviteEmail = {
@@ -829,19 +1102,29 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (window.confirm('Reset all family chat data to initial defaults?')) {
-      localStorage.clear();
+    if (window.confirm('Reset all family chat data to a clean, fresh state ready for new use?')) {
+      try {
+        localStorage.clear();
+      } catch {}
       setFamilyName('The Kinfolk Family');
       setMembers(INITIAL_MEMBERS);
-      setActiveMemberId('mary');
+      setFamilyUnits(INITIAL_FAMILY_UNITS);
+      setSecurityLogs(INITIAL_SECURITY_LOGS);
       setChannels(INITIAL_CHANNELS);
       setMessages(INITIAL_MESSAGES);
       setGroceries(INITIAL_GROCERIES);
       setChores(INITIAL_CHORES);
       setEvents(INITIAL_EVENTS);
       setNotices(INITIAL_NOTICES);
+      setSentInviteEmails(INITIAL_SENT_EMAILS);
+      setCheckInHistory(INITIAL_CHECKIN_RECORDS);
       setAdminCredentials(DEFAULT_ADMIN_CREDENTIALS);
       setIsAdminLoggedIn(true);
+      setActiveMemberId(DEFAULT_ADMIN_CREDENTIALS.mainMemberId);
+      setActiveChannelId('general');
+      setActiveTab('chat');
+      setLoginToastNotice('System has been reset to a fresh, clean state with organized units and appointed leaders.');
+      setTimeout(() => setLoginToastNotice(null), 5000);
     }
   };
 
@@ -872,8 +1155,10 @@ export default function App() {
           setIsMembersModalOpen(true);
         }}
         onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+        familyUnits={familyUnits}
         isLivelyMode={isLivelyMode}
         onToggleLivelyMode={() => setIsLivelyMode(!isLivelyMode)}
         onResetData={handleResetData}
@@ -886,76 +1171,103 @@ export default function App() {
         
         {/* Render Tab Content */}
         {activeTab === 'chat' && (
-          <div className="flex-1 flex flex-col h-full min-w-0">
-            <ChatHeader
-              currentChannel={currentChannel}
-              activeMember={activeMember}
-              allMembers={members}
-              isMuted={isMuted}
-              onToggleMute={() => setIsMuted(!isMuted)}
-              onStartCall={() => setIsCallModalOpen(true)}
-              onOpenMembersModal={() => {
-                setMembersModalTab('members');
-                setIsMembersModalOpen(true);
-              }}
-              onOpenRegisterMember={() => {
-                setMembersModalTab('register');
-                setIsMembersModalOpen(true);
-              }}
-              onOpenMemberLogin={() => setIsMemberLoginModalOpen(true)}
-              sentEmailsCount={sentInviteEmails.length}
-              onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
-              onToggleSidebarMobile={() => setIsMobileSidebarOpen(true)}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              isAdminLoggedIn={isAdminLoggedIn}
-              onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
-              onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
-              onInsertPromptToChat={(prompt) => handleSendMessage(prompt)}
-            />
+          <div className="flex-1 flex h-full min-w-0 overflow-hidden">
+            <div className="flex-1 flex flex-col h-full min-w-0">
+              <ChatHeader
+                currentChannel={currentChannel}
+                activeMember={activeMember}
+                allMembers={members}
+                isMuted={isMuted}
+                onToggleMute={() => setIsMuted(!isMuted)}
+                onStartCall={() => setIsCallModalOpen(true)}
+                onOpenMembersModal={() => {
+                  setMembersModalTab('members');
+                  setIsMembersModalOpen(true);
+                }}
+                onOpenRegisterMember={() => {
+                  setMembersModalTab('register');
+                  setIsMembersModalOpen(true);
+                }}
+                onOpenMemberLogin={() => setIsMemberLoginModalOpen(true)}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+                sentEmailsCount={sentInviteEmails.length}
+                onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
+                onToggleSidebarMobile={() => setIsMobileSidebarOpen(true)}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                isAdminLoggedIn={isAdminLoggedIn}
+                onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+                onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+                onInsertPromptToChat={(prompt) => handleSendMessage(prompt)}
+                isPresencePanelOpen={isPresencePanelOpen}
+                onTogglePresencePanel={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
+                onOpenFamilyUnitsModal={() => setIsFamilyUnitsModalOpen(true)}
+              />
 
-            {/* Chat Messages Feed */}
-            <MessageList
-              messages={currentChannelMessages}
-              members={members}
-              activeMemberId={activeMemberId}
-              selectedMessageId={selectedMessageForReaction?.id}
-              onSelectMessage={(msg) =>
-                setSelectedMessageForReaction((prev) => (prev?.id === msg.id ? null : msg))
-              }
-              onReact={handleReact}
-              onVotePoll={handleVotePoll}
-              onTogglePin={handleTogglePin}
-              onReplyTo={setReplyingTo}
-              onOpenImageLightbox={(url, caption) => setLightboxImage({ url, caption })}
-              onMarkAsRead={handleMarkAsRead}
-            />
+              {/* Chat Messages Feed */}
+              <MessageList
+                messages={currentChannelMessages}
+                members={members}
+                activeMemberId={activeMemberId}
+                selectedMessageId={selectedMessageForReaction?.id}
+                onSelectMessage={(msg) =>
+                  setSelectedMessageForReaction((prev) => (prev?.id === msg.id ? null : msg))
+                }
+                onReact={handleReact}
+                onVotePoll={handleVotePoll}
+                onTogglePin={handleTogglePin}
+                onReplyTo={setReplyingTo}
+                onOpenImageLightbox={(url, caption) => setLightboxImage({ url, caption })}
+                onMarkAsRead={handleMarkAsRead}
+              />
 
-            {/* Typing Indicator */}
-            {typingMemberName && (
-              <div className="px-6 py-1.5 bg-slate-50 text-xs text-slate-500 italic flex items-center gap-2 border-t border-slate-100">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" />
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-100" />
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-200" />
-                <span>{typingMemberName} is typing...</span>
-              </div>
+              {/* Typing Indicator */}
+              {typingMemberName && (
+                <div className="px-6 py-1.5 bg-slate-50 text-xs text-slate-500 italic flex items-center gap-2 border-t border-slate-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-100" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce delay-200" />
+                  <span>{typingMemberName} is typing...</span>
+                </div>
+              )}
+
+              {/* Message Input Box */}
+              <ChatInput
+                activeMember={activeMember}
+                replyingTo={replyingTo}
+                onCancelReply={() => setReplyingTo(null)}
+                onSendMessage={handleSendMessage}
+                onOpenVoiceRecorder={() => setIsVoiceRecorderOpen(true)}
+                onOpenCreatePoll={() => setIsCreatePollOpen(true)}
+                onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+                channelName={currentChannel.name}
+                selectedMessage={selectedMessageForReaction}
+                onClearSelectedMessage={() => setSelectedMessageForReaction(null)}
+                onReact={handleReact}
+                latestMessage={currentChannelMessages[currentChannelMessages.length - 1] || null}
+              />
+            </div>
+
+            {/* Clear Active vs Inactive Family Presence Panel */}
+            {isPresencePanelOpen && (
+              <FamilyPresencePanel
+                members={members}
+                familyUnits={familyUnits}
+                activeMember={activeMember}
+                onSelectMember={setActiveMemberId}
+                onOpenMembersModal={(tab) => {
+                  if (tab === 'security') {
+                    setIsFamilyUnitsModalOpen(true);
+                  } else {
+                    setMembersModalTab(tab || 'members');
+                    setIsMembersModalOpen(true);
+                  }
+                }}
+                onToggleOnlinePresence={handleToggleOnlinePresence}
+                onClose={() => setIsPresencePanelOpen(false)}
+                currentChannelName={currentChannel.name}
+              />
             )}
-
-            {/* Message Input Box */}
-            <ChatInput
-              activeMember={activeMember}
-              replyingTo={replyingTo}
-              onCancelReply={() => setReplyingTo(null)}
-              onSendMessage={handleSendMessage}
-              onOpenVoiceRecorder={() => setIsVoiceRecorderOpen(true)}
-              onOpenCreatePoll={() => setIsCreatePollOpen(true)}
-              onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
-              channelName={currentChannel.name}
-              selectedMessage={selectedMessageForReaction}
-              onClearSelectedMessage={() => setSelectedMessageForReaction(null)}
-              onReact={handleReact}
-              latestMessage={currentChannelMessages[currentChannelMessages.length - 1] || null}
-            />
           </div>
         )}
 
@@ -1008,6 +1320,30 @@ export default function App() {
             onAddEvent={handleAddEvent}
             onShareEventToChat={handleShareEventToChat}
             onDeleteEvent={handleDeleteEvent}
+          />
+        )}
+
+        {activeTab === 'family' && (
+          <FamilyTab
+            members={members}
+            activeMember={activeMember}
+            activeMemberId={activeMemberId}
+            checkInHistory={checkInHistory}
+            isAdminLoggedIn={isAdminLoggedIn}
+            familyName={familyName}
+            onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+            onOpenRegisterMember={() => {
+              setMembersModalTab('register');
+              setIsMembersModalOpen(true);
+            }}
+            onOpenMembersModal={() => {
+              setMembersModalTab('members');
+              setIsMembersModalOpen(true);
+            }}
+            onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+            onOpenExportModal={() => setIsSettingsModalOpen(true)}
+            onSendCheckInPromptToChat={(prompt) => handleSendMessage(prompt)}
+            onSelectMember={setActiveMemberId}
           />
         )}
 
@@ -1064,8 +1400,10 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setIsMembersModalOpen(true)}
-            className="flex flex-col items-center justify-center h-full min-h-[44px] text-slate-400 hover:text-slate-600"
+            onClick={() => setActiveTab('family')}
+            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
+              activeTab === 'family' ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
           >
             <Users className="w-4 h-4" />
             <span className="text-[9px] mt-1">Family</span>
@@ -1142,6 +1480,56 @@ export default function App() {
         }}
         initialTab={membersModalTab}
         onTestLoginAsMember={handleTestLoginAsMember}
+        checkInHistory={checkInHistory}
+        onOpenExportModal={() => setIsSettingsModalOpen(true)}
+        familyUnits={familyUnits}
+        onAddFamilyUnit={handleAddFamilyUnit}
+        onAppointLeader={handleAppointLeader}
+        securityLogs={securityLogs}
+        onToggleOnlinePresence={handleToggleOnlinePresence}
+      />
+
+      {/* Family Units & Appointed Leaders Modal */}
+      <FamilyUnitsModal
+        isOpen={isFamilyUnitsModalOpen}
+        onClose={() => setIsFamilyUnitsModalOpen(false)}
+        familyUnits={familyUnits}
+        members={members}
+        activeMember={activeMember}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onAddFamilyUnit={handleAddFamilyUnit}
+        onAppointLeader={handleAppointLeader}
+        onOpenRegisterMember={() => {
+          setMembersModalTab('register');
+          setIsMembersModalOpen(true);
+        }}
+        securityLogs={securityLogs}
+      />
+
+      {/* Family Settings & Archive Export Modal */}
+      <FamilySettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        familyName={familyName}
+        onUpdateFamilyName={setFamilyName}
+        isLivelyMode={isLivelyMode}
+        onToggleLivelyMode={() => setIsLivelyMode(!isLivelyMode)}
+        isMuted={isMuted}
+        onToggleMute={() => setIsMuted(!isMuted)}
+        isAdminLoggedIn={isAdminLoggedIn}
+        onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+        onAdminLogout={() => setIsAdminLoggedIn(false)}
+        adminCredentials={adminCredentials}
+        onUpdateAdminCredentials={setAdminCredentials}
+        members={members}
+        channels={channels}
+        messages={messages}
+        groceries={groceries}
+        chores={chores}
+        events={events}
+        notices={notices}
+        checkInHistory={checkInHistory}
+        onResetData={handleResetData}
       />
 
       {/* Delivered Email Preview & Credentials Modal */}

@@ -14,7 +14,9 @@ import {
   Shield,
   KeyRound,
   Mail,
-  LogIn
+  LogIn,
+  Settings,
+  Crown
 } from 'lucide-react';
 import { Channel, FamilyMember } from '../types/family';
 import { DailyFamilyInsight } from './DailyFamilyInsight';
@@ -37,7 +39,11 @@ interface ChatHeaderProps {
   onInsertPromptToChat?: (promptText: string) => void;
   onOpenRegisterMember?: () => void;
   onOpenMemberLogin?: () => void;
+  onOpenSettings?: () => void;
   sentEmailsCount?: number;
+  isPresencePanelOpen?: boolean;
+  onTogglePresencePanel?: () => void;
+  onOpenFamilyUnitsModal?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -58,7 +64,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onInsertPromptToChat,
   onOpenRegisterMember,
   onOpenMemberLogin,
+  onOpenSettings,
   sentEmailsCount = 0,
+  isPresencePanelOpen,
+  onTogglePresencePanel,
+  onOpenFamilyUnitsModal,
 }) => {
   const [isPinnedDismissed, setIsPinnedDismissed] = useState(false);
 
@@ -123,6 +133,41 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             <span className="hidden sm:inline">Family Call</span>
           </button>
 
+          {/* Active / Inactive Presence Toggle */}
+          {onTogglePresencePanel && (
+            <button
+              onClick={onTogglePresencePanel}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
+                isPresencePanelOpen
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-2xs'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+              title={isPresencePanelOpen ? 'Hide Active/Inactive Members Panel' : 'Show Active/Inactive Members Panel'}
+            >
+              <Users className={`w-3.5 h-3.5 ${isPresencePanelOpen ? 'text-emerald-200' : 'text-slate-500'}`} />
+              <span className="flex items-center gap-1 font-mono text-[11px]">
+                <span className={isPresencePanelOpen ? 'text-white font-bold' : 'text-emerald-600 font-bold'}>
+                  ● {allMembers.filter((m) => m.isOnline).length} Active
+                </span>
+                <span className={isPresencePanelOpen ? 'text-emerald-200' : 'text-slate-400'}>
+                  • {allMembers.filter((m) => !m.isOnline).length} Inactive
+                </span>
+              </span>
+            </button>
+          )}
+
+          {/* Family Units & Appointed Leaders Button */}
+          {onOpenFamilyUnitsModal && (
+            <button
+              onClick={onOpenFamilyUnitsModal}
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/90 text-amber-900 border border-amber-200/80 text-xs font-semibold transition-colors"
+              title="Family Units & Leader Management"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden xl:inline">Units & Leaders</span>
+            </button>
+          )}
+
           {/* Mute/Sound Toggle */}
           <button
             onClick={onToggleMute}
@@ -131,6 +176,17 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-emerald-600" />}
           </button>
+
+          {/* Family Settings & Archive Button */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              title="Family Settings & Export Archive"
+            >
+              <Settings className="w-4 h-4 text-slate-600" />
+            </button>
+          )}
 
           {/* Invite Member Action */}
           {onOpenRegisterMember && (

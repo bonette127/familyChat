@@ -16,12 +16,15 @@ import {
   MapPin,
   ChevronRight,
   Shield,
+  Crown,
   Edit2,
   X,
   FolderHeart,
-  LogIn
+  LogIn,
+  Settings,
+  CircleDot
 } from 'lucide-react';
-import { Channel, FamilyMember, Message } from '../types/family';
+import { Channel, FamilyMember, Message, FamilyUnit } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
@@ -33,6 +36,7 @@ interface SidebarProps {
   onSelectChannel: (channelId: string) => void;
   onAddChannel: (name: string, description: string) => void;
   members: FamilyMember[];
+  familyUnits?: FamilyUnit[];
   activeMemberId: string;
   messages?: Message[];
   onOpenDailyCheckIn?: () => void;
@@ -40,6 +44,7 @@ interface SidebarProps {
   onOpenMemberLogin?: () => void;
   onOpenRegisterModal?: () => void;
   onOpenNoticeBoard: () => void;
+  onOpenSettings?: () => void;
   isAdminLoggedIn?: boolean;
   onOpenAdminLogin?: () => void;
   isLivelyMode: boolean;
@@ -59,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectChannel,
   onAddChannel,
   members,
+  familyUnits = [],
   activeMemberId,
   messages = [],
   onOpenDailyCheckIn,
@@ -66,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenMemberLogin,
   onOpenRegisterModal,
   onOpenNoticeBoard,
+  onOpenSettings,
   isAdminLoggedIn,
   onOpenAdminLogin,
   isLivelyMode,
@@ -77,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isEditingFamilyName, setIsEditingFamilyName] = useState(false);
   const [tempFamilyName, setTempFamilyName] = useState(familyName);
   const [isAddingChannel, setIsAddingChannel] = useState(false);
+  const [presenceFilter, setPresenceFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelDesc, setNewChannelDesc] = useState('');
 
@@ -367,6 +375,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Calendar className="w-4 h-4" />
             <span>Family Calendar</span>
           </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('family');
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              activeTab === 'family'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Users className="w-4 h-4 text-emerald-500" />
+            <span>Family & Engagement</span>
+          </button>
         </div>
 
         {/* Scrollable Channels & Family Presence */}
@@ -491,20 +514,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-          {/* Family Circle Presence (Live Statuses) */}
-          <div>
-            <div className="flex items-center justify-between px-2 mb-2">
+          {/* Family Circle Presence (Active vs Inactive) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Family Status ({members.length})
+                Family Presence
               </span>
               <div className="flex items-center gap-1.5">
-                {onOpenRegisterModal && (
+                {onOpenRegisterModal && (activeMember.isAdmin || activeMember.isLeader) && (
                   <button
                     onClick={onOpenRegisterModal}
-                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-semibold flex items-center gap-0.5"
-                    title="Register a family member and send credentials email"
+                    className="text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-0.5 rounded-md font-bold flex items-center gap-0.5"
+                    title={activeMember.isAdmin ? "Register a new family member" : `Add member to ${activeMember.familyUnitName || 'your unit'}`}
                   >
-                    <span>+ Invite</span>
+                    <span>+ Add</span>
                   </button>
                 )}
                 <button
@@ -516,67 +539,166 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              {members.map((m) => (
-                <div
-                  key={m.id}
-                  onClick={onOpenMembersModal}
-                  className="px-2.5 py-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer flex items-center justify-between gap-2 group"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="relative shrink-0">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold ${m.avatarColor}`}
-                      >
-                        {m.name.charAt(0)}
-                      </div>
-                      {m.isOnline && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-emerald-700">
-                          {m.name}
-                        </p>
-                        {/* Daily Check-in mood emoji and short status ('At Home', 'Commuting', 'Busy') */}
-                        {m.shortStatus ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
-                            <span>{m.moodEmoji || '😊'}</span>
-                            <span>{m.shortStatus}</span>
-                          </span>
-                        ) : (
-                          m.statusEmoji && (
-                            <span className="text-[11px] shrink-0">{m.statusEmoji}</span>
-                          )
-                        )}
-                      </div>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                        {m.relationship || m.role}
-                        {m.lastCheckInTime && (
-                          <>
-                            <span aria-hidden="true"> · </span>
-                            <span>{m.lastCheckInTime}</span>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {m.batteryLevel !== undefined && (
-                    <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                      {m.batteryLevel}%
-                    </span>
-                  )}
-                </div>
-              ))}
+            {/* Presence Filter Buttons */}
+            <div className="flex items-center gap-1 px-1">
+              <button
+                onClick={() => setPresenceFilter('all')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all ${
+                  presenceFilter === 'all'
+                    ? 'bg-slate-900 text-white'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                All ({members.length})
+              </button>
+              <button
+                onClick={() => setPresenceFilter('active')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
+                  presenceFilter === 'active'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Active ({members.filter((m) => m.isOnline).length})</span>
+              </button>
+              <button
+                onClick={() => setPresenceFilter('inactive')}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
+                  presenceFilter === 'inactive'
+                    ? 'bg-slate-600 text-white'
+                    : 'text-slate-500 hover:bg-slate-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                <span>Inactive ({members.filter((m) => !m.isOnline).length})</span>
+              </button>
             </div>
+
+            {/* ACTIVE NOW SECTION */}
+            {(presenceFilter === 'all' || presenceFilter === 'active') && (
+              <div className="space-y-1">
+                <div className="px-2 pt-1 pb-0.5 flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Active Now ({members.filter((m) => m.isOnline).length})</span>
+                  </span>
+                </div>
+                {members.filter((m) => m.isOnline).map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={onOpenMembersModal}
+                    className="px-2.5 py-1.5 rounded-xl hover:bg-emerald-50/60 bg-white border border-slate-150 transition-colors cursor-pointer flex items-center justify-between gap-2 group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${m.avatarColor}`}>
+                          {m.name.charAt(0)}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700">
+                            {m.name}
+                          </p>
+                          {m.isAdmin && (
+                            <span className="text-[8px] bg-purple-100 text-purple-800 font-bold px-1 rounded flex items-center gap-0.5">
+                              <Shield className="w-2 h-2" /> Admin
+                            </span>
+                          )}
+                          {m.isLeader && !m.isAdmin && (
+                            <span className="text-[8px] bg-amber-100 text-amber-800 font-bold px-1 rounded flex items-center gap-0.5">
+                              <Crown className="w-2 h-2" /> Leader
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-slate-500 truncate">
+                          {m.familyUnitName ? `🏡 ${m.familyUnitName}` : m.role}
+                          {m.shortStatus ? ` • ${m.moodEmoji || '😊'} ${m.shortStatus}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100/70 px-1.5 py-0.2 rounded shrink-0">
+                      Active
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* INACTIVE / OFFLINE SECTION */}
+            {(presenceFilter === 'all' || presenceFilter === 'inactive') && (
+              <div className="space-y-1 pt-1">
+                <div className="px-2 pb-0.5 flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                    <span>Inactive / Offline ({members.filter((m) => !m.isOnline).length})</span>
+                  </span>
+                </div>
+                {members.filter((m) => !m.isOnline).map((m) => (
+                  <div
+                    key={m.id}
+                    onClick={onOpenMembersModal}
+                    className="px-2.5 py-1.5 rounded-xl hover:bg-slate-100/80 bg-slate-50/70 border border-slate-200/60 transition-colors cursor-pointer flex items-center justify-between gap-2 group opacity-85 hover:opacity-100"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold grayscale-40 ${m.avatarColor}`}>
+                          {m.name.charAt(0)}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-slate-300 border border-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-medium text-slate-700 truncate">
+                            {m.name}
+                          </p>
+                          {m.isAdmin && (
+                            <span className="text-[8px] bg-purple-50 text-purple-700 font-bold px-1 rounded">
+                              Admin
+                            </span>
+                          )}
+                          {m.isLeader && !m.isAdmin && (
+                            <span className="text-[8px] bg-amber-50 text-amber-700 font-bold px-1 rounded">
+                              Leader
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-slate-400 truncate">
+                          {m.familyUnitName ? `🏡 ${m.familyUnitName}` : m.role} • {m.lastActiveTime || 'Offline'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-mono shrink-0">
+                      Offline
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
 
-        {/* Footer Features (Lively simulator toggle + Bulletin button + Reset) */}
+        {/* Footer Features (Settings & Export + Lively simulator toggle + Bulletin button + Reset) */}
         <div className="p-3 border-t border-slate-100 bg-slate-50/50 space-y-2 text-xs">
+          {/* Family Settings & Archive Button */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="w-full py-1.5 px-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors flex items-center justify-between font-semibold shadow-2xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <Settings className="w-3.5 h-3.5 text-slate-700" />
+                <span>Family Settings & Archive</span>
+              </span>
+              <span className="text-[10px] text-emerald-700 font-mono font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                Export JSON
+              </span>
+            </button>
+          )}
+
           {/* Pinned Info Button */}
           <button
             onClick={onOpenNoticeBoard}
