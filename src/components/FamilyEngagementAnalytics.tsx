@@ -14,7 +14,9 @@ import {
   Legend,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  ReferenceLine,
+  ReferenceDot
 } from 'recharts';
 import {
   Users,
@@ -36,10 +38,17 @@ import {
   Zap,
   Activity,
   Download,
-  Filter
+  Filter,
+  CalendarDays,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Percent
 } from 'lucide-react';
-import { FamilyMember, DailyCheckInRecord } from '../types/family';
+import { FamilyMember, DailyCheckInRecord, FamilyEvent } from '../types/family';
 import { INITIAL_CHECKIN_RECORDS } from '../data/initialData';
+import { getEventEmoji, getEventColor } from './FamilyTab';
+import { calculateMoodEventCorrelation, CorrelationAnalysisResult } from '../utils/correlation';
 
 export interface FamilyEngagementAnalyticsProps {
   members: FamilyMember[];
@@ -49,6 +58,8 @@ export interface FamilyEngagementAnalyticsProps {
   onOpenCheckInModal?: () => void;
   onSendCheckInPromptToChat?: (prompt: string) => void;
   onOpenExportModal?: () => void;
+  events?: FamilyEvent[];
+  onNavigateToCalendar?: () => void;
 }
 
 // Historical Weekly Engagement Dataset
@@ -142,11 +153,15 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
   onOpenCheckInModal,
   onSendCheckInPromptToChat,
   onOpenExportModal,
+  events = [],
+  onNavigateToCalendar,
 }) => {
   const [selectedView, setSelectedView] = useState<'weekly' | 'daily'>('weekly');
   const [activeMetricTab, setActiveMetricTab] = useState<'all' | 'moods' | 'checkins' | 'activeMembers'>('all');
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('all');
   const [isCopiedSummary, setIsCopiedSummary] = useState(false);
+  const [showEventAnnotations, setShowEventAnnotations] = useState<boolean>(true);
+  const [showCorrelationDetails, setShowCorrelationDetails] = useState<boolean>(false);
 
   // Derived current metrics
   const currentWeek = WEEKLY_DATA[WEEKLY_DATA.length - 1];
@@ -206,7 +221,7 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
         avgScore = Number((sumScores / totalRecords).toFixed(1));
 
         dayRecords.forEach((r) => {
-          if (['😊', '🥳', '❤️', '✨'].includes(r.moodEmoji)) joyfulCount++;
+          if (['😊', '🥳', '❤️', '✨', '🎂', '🎉', '🌲'].includes(r.moodEmoji)) joyfulCount++;
           else if (['☕', '🌿', '🍲', '🛋️', '🍞'].includes(r.moodEmoji)) cozyCount++;
           else productiveCount++;
 
@@ -219,6 +234,15 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
         avgScore = selectedMemberFilter === 'all' ? 8.5 : 8.0;
       }
 
+      // Match calendar events for this day
+      const dayEvents = events.filter((evt) => {
+        const evtDate = evt.date ? evt.date.slice(0, 10) : '';
+        return evtDate === d.key;
+      });
+      const hasEvents = dayEvents.length > 0;
+      const primaryEvent = dayEvents[0] || null;
+      const isMoodSpike = avgScore >= 9.3;
+
       return {
         day: d.label,
         dayShort: d.dayName,
@@ -229,16 +253,35 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
         productiveMoods: productiveCount,
         totalCheckIns: totalRecords,
         notes: notes.slice(0, 3),
+        events: dayEvents,
+        hasEvents,
+        primaryEvent,
+        isMoodSpike,
       };
     });
-  }, [checkInHistory, selectedMemberFilter]);
+  }, [checkInHistory, selectedMemberFilter, events]);
 
   // Average weekly family mood score
   const avgWeeklyMoodScore = useMemo(() => {
     const validScores = moodTrendsLastWeek.filter((d) => d.totalCheckIns > 0);
     if (!validScores.length) return 9.2;
     const total = validScores.reduce((acc, d) => acc + d.avgMoodScore, 0);
-    return (total / validScores.length).toFixed(1);
+    return Number((total / validScores.length).toFixed(1));
+  }, [moodTrendsLastWeek]);
+
+  // Calculate Pearson correlation coefficient between calendar events and mood scores
+  const correlationAnalysis = useMemo(() => {
+    return calculateMoodEventCorrelation(
+      moodTrendsLastWeek.map((d) => ({
+        dateKey: d.dateKey,
+        dayLabel: d.day,
+        avgMoodScore: d.avgMoodScore,
+        hasEvents: d.hasEvents,
+        events: d.events,
+        primaryEvent: d.primaryEvent,
+        totalCheckIns: d.totalCheckIns,
+      }))
+    );
   }, [moodTrendsLastWeek]);
 
   const handleCopyAdminSummary = () => {
@@ -313,6 +356,28 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
               <span className="font-semibold text-slate-300 block">Logged Notes:</span>
               {dataPoint.notes.map((note: string, idx: number) => (
                 <p key={idx} className="truncate text-slate-300 italic">{note}</p>
+              ))}
+            </div>
+          )}
+
+          {dataPoint?.hasEvents && (
+            <div className="pt-1.5 border-t border-slate-800 space-y-1">
+              <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                <span>Calendar Events:</span>
+              </span>
+              {dataPoint.events.map((evt: FamilyEvent) => (
+                <div key={evt.id} className="text-[11px] bg-slate-800/80 rounded-lg p-1.5 border border-slate-700/60">
+                  <span className="font-bold text-white flex items-center gap-1">
+                    <span>{getEventEmoji(evt.type)}</span>
+                    <span>{evt.title}</span>
+                  </span>
+                  {dataPoint.isMoodSpike && (
+                    <span className="text-[10px] text-emerald-400 font-semibold block mt-0.5">
+                      ★ Key Event Mood Spike Correlation ({dataPoint.avgMoodScore}/10)
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -549,20 +614,84 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
                     DailyCheckIn Feature
                   </span>
                 </h4>
+
+                {/* Calculated Correlation Badge */}
+                <div
+                  onClick={() => setShowCorrelationDetails(!showCorrelationDetails)}
+                  className="cursor-pointer inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-300 text-emerald-900 px-2.5 py-0.5 rounded-full text-xs font-semibold hover:border-emerald-400 hover:shadow-2xs transition-all"
+                  title="Click to view full mathematical correlation breakdown"
+                >
+                  <Percent className="w-3 h-3 text-emerald-600" />
+                  <span>Event Correlation:</span>
+                  <span className="font-mono font-black text-emerald-700 bg-white px-1.5 py-0.2 rounded border border-emerald-200">
+                    r = {correlationAnalysis.rFormatted}
+                  </span>
+                  <span className="text-[10px] text-emerald-800 font-bold hidden sm:inline">
+                    ({correlationAnalysis.strengthLabel})
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 Daily family sentiment trajectory (1–10 wellness scale) based on feelings and statuses logged in Daily Check-in
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl">
-                Avg Score: {avgWeeklyMoodScore} / 10
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {/* Correlation Insights Toggle */}
+              <button
+                onClick={() => setShowCorrelationDetails(!showCorrelationDetails)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                  showCorrelationDetails
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                    : 'bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50'
+                }`}
+                title="Toggle in-depth correlation coefficient details and statistical proof"
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Correlation</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  showCorrelationDetails ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {correlationAnalysis.rFormatted}
+                </span>
+                {showCorrelationDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+
+              {/* Toggle Calendar Annotations */}
+              <button
+                onClick={() => setShowEventAnnotations(!showEventAnnotations)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+                  showEventAnnotations
+                    ? 'bg-rose-50 text-rose-800 border-rose-300 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="Toggle Calendar event annotations (birthdays, trips, dinners) on the Mood Trends chart"
+              >
+                <Calendar className={`w-3.5 h-3.5 ${showEventAnnotations ? 'text-rose-600' : 'text-slate-400'}`} />
+                <span>Calendar Annotations</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${showEventAnnotations ? 'bg-rose-200 text-rose-900' : 'bg-slate-100 text-slate-600'}`}>
+                  {moodTrendsLastWeek.filter((d) => d.hasEvents).length}
+                </span>
+              </button>
+
+              {onNavigateToCalendar && (
+                <button
+                  onClick={onNavigateToCalendar}
+                  className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <CalendarDays className="w-3.5 h-3.5 text-sky-600" />
+                  <span className="hidden sm:inline">Calendar</span>
+                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                </button>
+              )}
+
+              <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                Avg: {avgWeeklyMoodScore} / 10
               </span>
               {onOpenCheckInModal && (
                 <button
                   onClick={onOpenCheckInModal}
-                  className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors"
                 >
                   <Smile className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Log Check-in</span>
@@ -571,10 +700,149 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
             </div>
           </div>
 
+          {/* IN-DEPTH CORRELATION ANALYSIS & STATISTICAL PROOF PANEL */}
+          {showCorrelationDetails && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-850 to-indigo-950 text-white border border-slate-700/80 shadow-lg space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">
+                      <TrendingUp className="w-4 h-4" />
+                    </span>
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>Event-Mood Correlation Deep Dive</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40 font-bold">
+                        Pearson r = {correlationAnalysis.rFormatted}
+                      </span>
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">
+                    {correlationAnalysis.interpretation}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setShowCorrelationDetails(false)}
+                  className="self-end sm:self-auto text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg hover:bg-slate-850 border border-slate-700 transition-colors"
+                >
+                  Close ✕
+                </button>
+              </div>
+
+              {/* VISUAL SPECTRUM GAUGE: -1.0 (Inverse) to +1.0 (Strong Positive) */}
+              <div className="space-y-1.5 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <span className="text-rose-400 font-bold">-1.0 (Negative)</span>
+                  <span className="text-slate-400">0.0 (Independent)</span>
+                  <span className="text-emerald-400 font-bold">+1.0 (Perfect Positive)</span>
+                </div>
+
+                {/* Gradient Track with Marker */}
+                <div className="relative w-full h-3 rounded-full bg-gradient-to-r from-rose-500 via-amber-400 via-slate-500 to-emerald-500 p-0.5">
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-slate-900 shadow-md ring-2 ring-emerald-400 transition-all"
+                    style={{
+                      left: `calc(${Math.max(2, Math.min(98, ((correlationAnalysis.r + 1) / 2) * 100))}% - 8px)`,
+                    }}
+                    title={`Current Pearson r = ${correlationAnalysis.rFormatted}`}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                  <span>Events reduce mood</span>
+                  <span className="font-bold text-emerald-300 font-mono">
+                    Current: {correlationAnalysis.rFormatted} ({correlationAnalysis.strengthLabel})
+                  </span>
+                  <span>Events strongly drive mood spikes</span>
+                </div>
+              </div>
+
+              {/* 4 CORE STATISTICAL METRICS */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Pearson Coefficient (r)</span>
+                  <span className="text-lg font-mono font-black text-emerald-400">{correlationAnalysis.rFormatted}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">{correlationAnalysis.strengthLabel}</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Variance Explained (r²)</span>
+                  <span className="text-lg font-mono font-black text-indigo-300">{correlationAnalysis.rSquaredFormatted}</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">of mood spikes correlate with events</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Event Days vs Baseline</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg font-mono font-black text-rose-400">{correlationAnalysis.eventDaysAvg}★</span>
+                    <span className="text-xs text-slate-400">vs {correlationAnalysis.nonEventDaysAvg}★</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-300 font-bold block mt-0.5">
+                    +{correlationAnalysis.moodDelta} pts (+{correlationAnalysis.upliftPercentage}%)
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Analyzed Window</span>
+                  <span className="text-lg font-mono font-black text-white">{correlationAnalysis.totalDays} Days</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">
+                    {correlationAnalysis.eventDaysCount} event days • {correlationAnalysis.nonEventDaysCount} quiet days
+                  </span>
+                </div>
+              </div>
+
+              {/* BREAKDOWN BY EVENT TYPE */}
+              {correlationAnalysis.eventTypeBreakdown.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-200 block">
+                    Mood Uplift by Milestone Category:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                    {correlationAnalysis.eventTypeBreakdown.map((item) => (
+                      <div
+                        key={item.type}
+                        className="p-2.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-base">{item.emoji}</span>
+                          <div className="truncate">
+                            <span className="text-xs font-bold text-white block truncate">{item.label}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">{item.count} scheduled</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-mono font-black text-emerald-400">{item.avgMood}★</span>
+                          <span className="text-[10px] text-emerald-300 font-bold block">+{item.uplift} pts</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* METHODOLOGY & RECOMMENDATION CALLOUT */}
+              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5 max-w-xl">
+                  <div className="flex items-center gap-1.5 text-indigo-300 font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Mathematical Rationale & Family Wellness Insight:</span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    {correlationAnalysis.recommendation}
+                  </p>
+                </div>
+
+                <div className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-700 shrink-0">
+                  Formula: r = Σ((X-X̄)(Y-Ȳ)) / (σ_X · σ_Y)
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recharts Mood Trends Area + Line Chart */}
           <div className="w-full h-72 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={moodTrendsLastWeek} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
+              <AreaChart data={moodTrendsLastWeek} margin={{ top: 25, right: 15, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="moodScoreGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -597,6 +865,47 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
                 />
                 <Tooltip content={<CustomMoodTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+
+                {/* Calendar Event Annotations (Reference Lines & Dots) */}
+                {showEventAnnotations &&
+                  moodTrendsLastWeek
+                    .filter((d) => d.hasEvents)
+                    .map((d) => (
+                      <ReferenceLine
+                        key={`analytics-ref-line-${d.dateKey}`}
+                        x={d.day}
+                        stroke={getEventColor(d.primaryEvent?.type)}
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        label={{
+                          value: `${getEventEmoji(d.primaryEvent?.type)} ${
+                            d.primaryEvent?.title && d.primaryEvent.title.length > 18
+                              ? d.primaryEvent.title.slice(0, 16) + '…'
+                              : d.primaryEvent?.title
+                          }${d.isMoodSpike ? ` (${d.avgMoodScore}★)` : ''}`,
+                          position: 'top',
+                          fill: getEventColor(d.primaryEvent?.type),
+                          fontSize: 10,
+                          fontWeight: 'bold',
+                        }}
+                      />
+                    ))}
+
+                {showEventAnnotations &&
+                  moodTrendsLastWeek
+                    .filter((d) => d.hasEvents)
+                    .map((d) => (
+                      <ReferenceDot
+                        key={`analytics-ref-dot-${d.dateKey}`}
+                        x={d.day}
+                        y={d.avgMoodScore}
+                        r={6}
+                        fill={getEventColor(d.primaryEvent?.type)}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                      />
+                    ))}
+
                 <Area
                   type="monotone"
                   dataKey="avgMoodScore"
@@ -629,23 +938,80 @@ export const FamilyEngagementAnalytics: React.FC<FamilyEngagementAnalyticsProps>
             </ResponsiveContainer>
           </div>
 
+          {/* Event Correlation Insights Banner */}
+          {showEventAnnotations && moodTrendsLastWeek.some((d) => d.hasEvents) && (
+            <div className="p-3 bg-gradient-to-r from-rose-50 via-amber-50 to-emerald-50 rounded-2xl border border-rose-200/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Calendar Events Correlated with Mood Spikes</span>
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">Click Calendar tab to plan more events</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {moodTrendsLastWeek
+                  .filter((d) => d.hasEvents)
+                  .map((d) => {
+                    const evt = d.primaryEvent!;
+                    return (
+                      <div
+                        key={`analytics-event-card-${d.dateKey}`}
+                        className="bg-white/90 backdrop-blur-sm p-2.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1 truncate">
+                            <span>{getEventEmoji(evt.type)}</span>
+                            <span className="truncate">{evt.title}</span>
+                          </span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            d.isMoodSpike ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {d.avgMoodScore} ★
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          {d.dayShort} • {evt.location || 'Family Gathering'}
+                        </p>
+                        {d.isMoodSpike && (
+                          <p className="text-[10px] text-emerald-700 font-medium">
+                            Positive mood spike (+{(d.avgMoodScore - 8.4).toFixed(1)} pts vs baseline)
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           {/* Daily Mood Insights Footer Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 border-t border-slate-100 text-xs">
-            <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
-              <span className="text-[10px] text-emerald-700 font-bold uppercase block mb-0.5">Top Feeling</span>
-              <span className="font-bold text-slate-900">Grateful 😊 (48%)</span>
+            <div 
+              onClick={() => setShowCorrelationDetails(!showCorrelationDetails)}
+              className="p-2.5 rounded-xl bg-emerald-50/80 border border-emerald-200 cursor-pointer hover:bg-emerald-100/70 transition-colors"
+              title="Click to view detailed correlation analysis"
+            >
+              <span className="text-[10px] text-emerald-800 font-bold uppercase block mb-0.5 flex items-center justify-between">
+                <span>Correlation (r)</span>
+                <Percent className="w-3 h-3 text-emerald-600" />
+              </span>
+              <span className="font-bold text-slate-900 font-mono">r = {correlationAnalysis.rFormatted}</span>
+              <span className="text-[10px] text-emerald-700 block font-semibold">{correlationAnalysis.strengthLabel}</span>
             </div>
-            <div className="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-100">
-              <span className="text-[10px] text-indigo-700 font-bold uppercase block mb-0.5">Peak Day</span>
-              <span className="font-bold text-slate-900">Sunday Dinner (9.8/10)</span>
+            <div className="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200">
+              <span className="text-[10px] text-indigo-800 font-bold uppercase block mb-0.5">Variance (r²)</span>
+              <span className="font-bold text-slate-900 font-mono">{correlationAnalysis.rSquaredFormatted}</span>
+              <span className="text-[10px] text-indigo-700 block font-medium">aligned with events</span>
             </div>
-            <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-100">
-              <span className="text-[10px] text-amber-700 font-bold uppercase block mb-0.5">Consistency</span>
-              <span className="font-bold text-slate-900">7 of 7 Days Tracked</span>
+            <div className="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200">
+              <span className="text-[10px] text-rose-800 font-bold uppercase block mb-0.5">Event Day Uplift</span>
+              <span className="font-bold text-slate-900 font-mono">+{correlationAnalysis.moodDelta}★ pts</span>
+              <span className="text-[10px] text-rose-700 block font-semibold">+{correlationAnalysis.upliftPercentage}% mood surge</span>
             </div>
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-[10px] text-slate-500 font-bold uppercase block mb-0.5">Total Logs</span>
-              <span className="font-bold text-slate-900">{checkInHistory.length} Check-ins Saved</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase block mb-0.5">Event vs Baseline</span>
+              <span className="font-bold text-slate-900 font-mono">{correlationAnalysis.eventDaysAvg}★ vs {correlationAnalysis.nonEventDaysAvg}★</span>
+              <span className="text-[10px] text-slate-500 block font-medium">{correlationAnalysis.eventDaysCount} event days</span>
             </div>
           </div>
         </div>

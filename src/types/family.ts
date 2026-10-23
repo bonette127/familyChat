@@ -44,6 +44,7 @@ export interface FamilyMember {
   lastCheckInTime?: string; // Timestamp of latest Daily Check-in
   lastActiveTime?: string; // e.g. 'Active now', '10m ago', 'Yesterday'
   checkInNote?: string; // Optional note accompanying daily check-in
+  familyRole?: string; // e.g. "Aunt", "Uncle", "Grandmother", "Grandfather", "Mom", "Dad", "Cousin"
   relationship?: string; // Family connection to help reconnect (e.g. "Eldest Daughter", "Mother", "Cousin")
   hometown?: string; // Current city or roots
   batteryLevel?: number;
@@ -64,6 +65,17 @@ export interface FamilyMember {
   password?: string; // Login password/passcode needed for chat access
   inviteSentAt?: string; // Timestamp when credential email was dispatched
   inviteEmailSentTo?: string; // Target email address
+}
+
+export interface FamilyMilestoneBadge {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  criteria: string;
+  category: 'streak' | 'mindfulness' | 'joy' | 'consistency' | 'early_bird';
+  color: string;
+  earnedByMemberIds: string[];
 }
 
 export interface SentInviteEmail {
@@ -100,7 +112,7 @@ export interface PollData {
 }
 
 export interface Attachment {
-  type: 'image' | 'audio' | 'location' | 'recipe';
+  type: 'image' | 'audio' | 'location' | 'recipe' | 'music' | 'entertainment';
   url?: string;
   caption?: string;
   duration?: number; // seconds for audio
@@ -109,6 +121,46 @@ export interface Attachment {
   recipeIngredients?: string[];
   locationName?: string;
   eta?: string;
+  musicTrack?: {
+    title: string;
+    artist: string;
+    albumArt?: string;
+    duration?: string;
+    previewUrl?: string;
+    genre?: string;
+    sharedNote?: string;
+  };
+  entertainmentItem?: {
+    title: string;
+    type: 'movie' | 'tv' | 'game' | 'trivia';
+    platform?: string; // e.g. 'Netflix', 'Disney+', 'Family Board Game'
+    rating?: string;
+    posterUrl?: string;
+    summary?: string;
+    suggestedBy?: string;
+  };
+}
+
+export interface FamilyStatusUpdate {
+  id: string;
+  memberId: string;
+  memberName: string;
+  avatarColor: string;
+  avatarImage?: string;
+  text: string;
+  moodEmoji: string;
+  location?: string;
+  mediaUrl?: string;
+  postedAt: string;
+  formattedTime: string;
+  likes?: string[];
+}
+
+export interface FamilyPhotoConfig {
+  url: string;
+  updatedAt: string;
+  updatedBy: string;
+  caption?: string;
 }
 
 export interface Message {
@@ -142,11 +194,19 @@ export interface Channel {
 export interface GroceryItem {
   id: string;
   text: string;
-  category: 'produce' | 'dairy' | 'pantry' | 'bakery' | 'household' | 'other';
+  category: 'produce' | 'dairy' | 'pantry' | 'bakery' | 'household' | 'pharmacy' | 'treats' | 'other';
   completed: boolean;
   addedBy: string;
   assignedTo?: string;
   addedAt: string;
+  store?: string; // e.g. "Trader Joe's", "Costco", "Local Market", "Pharmacy"
+  estimatedPrice?: number; // e.g. 4.99
+  claimedBy?: string; // Member who said "I'll pick this up!"
+  claimedByName?: string;
+  purchasedBy?: string;
+  purchasedByName?: string;
+  purchasedAt?: string;
+  urgency?: 'urgent' | 'needed' | 'treat';
 }
 
 export interface ChoreItem {

@@ -53,6 +53,7 @@ export const FamilyPresencePanel: React.FC<FamilyPresencePanelProps> = ({
       const matchesSearch =
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.familyRole && m.familyRole.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.familyUnitName && m.familyUnitName.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesUnit =
@@ -263,10 +264,15 @@ export const FamilyPresencePanel: React.FC<FamilyPresencePanelProps> = ({
                         </div>
 
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700">
                               {m.name}
                             </span>
+                            {m.familyRole && (
+                              <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-md shrink-0">
+                                {m.familyRole}
+                              </span>
+                            )}
                             
                             {/* Role Badges */}
                             {m.isAdmin && (
@@ -361,10 +367,15 @@ export const FamilyPresencePanel: React.FC<FamilyPresencePanelProps> = ({
                         </div>
 
                         <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-semibold text-slate-700 truncate">
                               {m.name}
                             </span>
+                            {m.familyRole && (
+                              <span className="text-[9px] font-medium text-slate-600 bg-slate-200/80 px-1.5 py-0.2 rounded shrink-0">
+                                {m.familyRole}
+                              </span>
+                            )}
                             {m.isAdmin && (
                               <span className="text-[9px] bg-purple-50 text-purple-700 font-bold px-1.5 py-0.2 rounded shrink-0">
                                 Admin

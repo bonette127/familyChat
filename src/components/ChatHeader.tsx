@@ -88,12 +88,23 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
+              <span className="text-lg shrink-0">
+                {currentChannel.name === 'general' ? '🛋️' : currentChannel.name === 'dinner' ? '🍲' : currentChannel.name === 'groceries' ? '🛒' : currentChannel.name === 'plans' ? '📅' : '💬'}
+              </span>
               <h2 className="text-base font-bold text-slate-900 truncate font-display">
-                #{currentChannel.name}
+                {currentChannel.name === 'general'
+                  ? 'Family Living Room'
+                  : currentChannel.name === 'dinner'
+                  ? 'Sunday Dinner & Recipes'
+                  : currentChannel.name === 'groceries'
+                  ? 'Shared Groceries & Errands'
+                  : currentChannel.name === 'plans'
+                  ? 'Family Outings & Events'
+                  : `#${currentChannel.name}`}
               </h2>
             </div>
             <p className="text-xs text-slate-500 truncate hidden sm:block">
-              {currentChannel.description}
+              {currentChannel.description || 'Private family conversation & daily connection'}
             </p>
           </div>
         </div>
@@ -257,13 +268,20 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             className="flex items-center gap-2 pl-2 pr-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-slate-200/70"
             title="Switch chatting profile"
           >
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${activeMember.avatarColor}`}>
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${activeMember.avatarColor}`}>
               {activeMember.name.charAt(0)}
             </div>
-            <span className="text-xs font-medium truncate max-w-[90px] sm:max-w-none">
-              {activeMember.name}
-            </span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-xs font-bold truncate max-w-[90px] sm:max-w-none text-slate-900">
+                {activeMember.name}
+              </span>
+              {activeMember.familyRole && (
+                <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded shrink-0">
+                  {activeMember.familyRole}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </button>
 
         </div>

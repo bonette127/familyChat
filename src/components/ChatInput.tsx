@@ -493,7 +493,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <textarea
           ref={textareaRef}
           rows={1}
-          placeholder={`Message #${channelName} as ${activeMember.name}...`}
+          placeholder={`Message our family circle as ${activeMember.name}${activeMember.familyRole ? ` (${activeMember.familyRole})` : ''}...`}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -514,7 +514,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       <div className="flex items-center justify-between mt-1 px-1 text-[11px] text-slate-400">
         <span className="flex items-center gap-1">
-          Chatting as <strong className="text-slate-700">{activeMember.name}</strong> ({activeMember.role})
+          Chatting as <strong className="text-slate-700">{activeMember.name}</strong> {activeMember.familyRole ? <span className="font-bold text-rose-700">({activeMember.familyRole})</span> : `(${activeMember.role})`}
         </span>
         <span className="hidden sm:inline">Press Enter to send · Shift+Enter for new line</span>
       </div>

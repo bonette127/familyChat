@@ -1344,6 +1344,8 @@ export default function App() {
             onOpenExportModal={() => setIsSettingsModalOpen(true)}
             onSendCheckInPromptToChat={(prompt) => handleSendMessage(prompt)}
             onSelectMember={setActiveMemberId}
+            events={events}
+            onNavigateToCalendar={() => setActiveTab('calendar')}
           />
         )}
 
@@ -1487,6 +1489,8 @@ export default function App() {
         onAppointLeader={handleAppointLeader}
         securityLogs={securityLogs}
         onToggleOnlinePresence={handleToggleOnlinePresence}
+        events={events}
+        onNavigateToCalendar={() => setActiveTab('calendar')}
       />
 
       {/* Family Units & Appointed Leaders Modal */}

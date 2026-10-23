@@ -312,38 +312,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <MessageCircle className="w-4 h-4" />
-            <span>Family Chat Feed</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onSelectTab('album');
-              onCloseMobile();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-              activeTab === 'album'
-                ? 'bg-slate-900 text-white shadow-2xs'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Camera className="w-4 h-4" />
-            <span>Memories & Scrapbook</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onSelectTab('media');
-              onCloseMobile();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-              activeTab === 'media'
-                ? 'bg-slate-900 text-white shadow-2xs'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <FolderHeart className="w-4 h-4 text-rose-500" />
-            <span>Shared Media & Voice</span>
+            <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Living Room Chat</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Family conversation feed</span>
+            </div>
           </button>
 
           <button
@@ -357,8 +330,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Groceries & Chores</span>
+            <ShoppingCart className="w-4 h-4 text-amber-400 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Shopping & Purchases</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Shared groceries & errands</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('album');
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              activeTab === 'album'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <Camera className="w-4 h-4 text-indigo-400 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Family Keepsakes</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Photos & scrapbook albums</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('media');
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              activeTab === 'media'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          >
+            <FolderHeart className="w-4 h-4 text-rose-500 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Voice Notes & Audio</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Voice notes, music & recipes</span>
+            </div>
           </button>
 
           <button
@@ -372,8 +384,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <Calendar className="w-4 h-4" />
-            <span>Family Calendar</span>
+            <Calendar className="w-4 h-4 text-teal-400 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Gatherings & Birthdays</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Family calendar & trips</span>
+            </div>
           </button>
 
           <button
@@ -387,8 +402,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <Users className="w-4 h-4 text-emerald-500" />
-            <span>Family & Engagement</span>
+            <Users className="w-4 h-4 text-amber-500 shrink-0" />
+            <div className="text-left min-w-0">
+              <span className="block font-bold text-xs truncate">Family Circle & Badges</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Check-ins & milestone awards</span>
+            </div>
           </button>
         </div>
 
@@ -399,7 +417,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <div className="flex items-center justify-between px-2 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Rooms & Circles
+                Family Gathering Rooms
               </span>
               <button
                 onClick={() => setIsAddingChannel(!isAddingChannel)}
@@ -477,7 +495,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <div className="px-2 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Direct Chats
+                One-on-One Family Chats
               </span>
             </div>
             <div className="space-y-0.5">
@@ -598,10 +616,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700">
                             {m.name}
                           </p>
+                          {m.familyRole && (
+                            <span className="text-[8px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded shrink-0">
+                              {m.familyRole}
+                            </span>
+                          )}
                           {m.isAdmin && (
                             <span className="text-[8px] bg-purple-100 text-purple-800 font-bold px-1 rounded flex items-center gap-0.5">
                               <Shield className="w-2 h-2" /> Admin
@@ -650,10 +673,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-slate-300 border border-white" />
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-xs font-medium text-slate-700 truncate">
                             {m.name}
                           </p>
+                          {m.familyRole && (
+                            <span className="text-[8px] font-medium text-slate-600 bg-slate-200/80 px-1 py-0.2 rounded shrink-0">
+                              {m.familyRole}
+                            </span>
+                          )}
                           {m.isAdmin && (
                             <span className="text-[8px] bg-purple-50 text-purple-700 font-bold px-1 rounded">
                               Admin

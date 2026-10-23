@@ -31,8 +31,27 @@ import {
   Crown,
   AlertCircle
 } from 'lucide-react';
-import { FamilyMember, SentInviteEmail, DailyCheckInRecord, FamilyUnit, SecurityAuditLog } from '../types/family';
+import { FamilyMember, SentInviteEmail, DailyCheckInRecord, FamilyUnit, SecurityAuditLog, FamilyEvent } from '../types/family';
 import { FamilyEngagementAnalytics } from './FamilyEngagementAnalytics';
+
+export const FAMILY_ROLE_PRESETS = [
+  'Aunt',
+  'Uncle',
+  'Grandmother',
+  'Grandfather',
+  'Mother',
+  'Father',
+  'Cousin',
+  'Sister',
+  'Brother',
+  'Daughter',
+  'Son',
+  'Niece',
+  'Nephew',
+  'Family Elder',
+  'In-Law',
+  'Other',
+];
 
 interface FamilyMembersModalProps {
   isOpen: boolean;
@@ -60,6 +79,8 @@ interface FamilyMembersModalProps {
   onAppointLeader?: (unitId: string, memberId: string) => void;
   securityLogs?: SecurityAuditLog[];
   onToggleOnlinePresence?: (memberId: string) => void;
+  events?: FamilyEvent[];
+  onNavigateToCalendar?: () => void;
 }
 
 
@@ -89,6 +110,8 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
   onAppointLeader,
   securityLogs = [],
   onToggleOnlinePresence,
+  events = [],
+  onNavigateToCalendar,
 }) => {
   const [activeTab, setActiveTab] = useState<'members' | 'register' | 'units' | 'invites' | 'analytics'>(initialTab);
   const [isEditingSelf, setIsEditingSelf] = useState(false);
@@ -116,7 +139,9 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
 
   // Add member states
   const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState('');
+  const [newFamilyRole, setNewFamilyRole] = useState('Aunt');
+  const [customFamilyRole, setCustomFamilyRole] = useState('');
+  const [newRole, setNewRole] = useState('Aunt');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState(generatePassword);
   const [showPassword, setShowPassword] = useState(true);
@@ -143,6 +168,7 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
     password: string;
     hasChatAccess: boolean;
     memberId: string;
+    familyRole: string;
     sentEmail: SentInviteEmail;
   } | null>(null);
 
@@ -167,8 +193,13 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
 
   const handleCreateMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName.trim() || !newRole.trim()) return;
+    if (!newName.trim()) return;
 
+    const effectiveFamilyRole = newFamilyRole === 'Other'
+      ? (customFamilyRole.trim() || 'Relative')
+      : newFamilyRole;
+
+    const roleTitle = newRole.trim() || effectiveFamilyRole;
     const emailToSend = newEmail.trim() || `${newName.trim().toLowerCase().replace(/\s+/g, '.')}@kinfolk.family`;
     const passwordToUse = newPassword.trim() || generatePassword();
     const tempMemberId = `member-${Date.now()}`;
@@ -178,10 +209,11 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
 
     const newMemberData: Omit<FamilyMember, 'id'> = {
       name: newName.trim(),
-      role: newRole.trim(),
+      role: roleTitle,
+      familyRole: effectiveFamilyRole,
       email: emailToSend,
       password: passwordToUse,
-      relationship: newRelationship.trim() || newRole.trim(),
+      relationship: newRelationship.trim() || effectiveFamilyRole,
       hometown: newHometown.trim() || undefined,
       avatarColor: newColor,
       status: 'Joined the family circle',
@@ -233,12 +265,15 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
       password: passwordToUse,
       hasChatAccess: grantImmediateAccess,
       memberId: tempMemberId,
+      familyRole: effectiveFamilyRole,
       sentEmail,
     });
 
     // Reset registration form inputs
     setNewName('');
-    setNewRole('');
+    setNewFamilyRole('Aunt');
+    setCustomFamilyRole('');
+    setNewRole('Aunt');
     setNewEmail('');
     setNewRelationship('');
     setNewHometown('');
@@ -489,18 +524,25 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
                           </div>
                           
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-sm font-bold text-slate-900">
                                 {member.name}
                               </span>
+                              {member.familyRole && (
+                                <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                                  {member.familyRole}
+                                </span>
+                              )}
                               {isFamilyMainAdmin && (
                                 <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.2 rounded-full">
                                   Admin 🛡️
                                 </span>
                               )}
-                              <span className="text-xs text-slate-500">
-                                ({member.relationship || member.role})
-                              </span>
+                              {member.role !== member.familyRole && (
+                                <span className="text-xs text-slate-500">
+                                  ({member.role})
+                                </span>
+                              )}
                             </div>
 
                             {member.email && (
@@ -787,7 +829,7 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. Sarah Jenkins or Cousin Leo"
+                          placeholder="e.g. Sarah Jenkins or David Miller"
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -797,30 +839,56 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Family Role / Title *
+                        <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                          <span>Family Role within Circle *</span>
+                          <span className="text-[10px] text-rose-700 font-bold bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-md">
+                            Family Role Selector
+                          </span>
                         </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Sister, Uncle, Grandma"
-                          value={newRole}
-                          onChange={(e) => setNewRole(e.target.value)}
-                          className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        <select
+                          value={newFamilyRole}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewFamilyRole(val);
+                            if (val !== 'Other') {
+                              setNewRole(val);
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 font-semibold text-slate-800"
                           required
-                        />
+                        >
+                          {FAMILY_ROLE_PRESETS.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                        {newFamilyRole === 'Other' && (
+                          <input
+                            type="text"
+                            placeholder="Type custom role (e.g. Godmother, Great Uncle, Elder)..."
+                            value={customFamilyRole}
+                            onChange={(e) => {
+                              setCustomFamilyRole(e.target.value);
+                              setNewRole(e.target.value);
+                            }}
+                            className="mt-1.5 w-full px-3 py-1.5 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            required
+                          />
+                        )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Relationship / Branch
+                          Display Title or Nickname in Chat
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. Eldest Daughter, Cousin on Mom's side"
-                          value={newRelationship}
-                          onChange={(e) => setNewRelationship(e.target.value)}
+                          placeholder="e.g. Aunt Sarah, Grandma Mary, Uncle Marcus"
+                          value={newRole}
+                          onChange={(e) => setNewRole(e.target.value)}
                           className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                         />
                       </div>
@@ -1082,6 +1150,11 @@ export const FamilyMembersModal: React.FC<FamilyMembersModalProps> = ({
                 onOpenRegisterMember={() => setActiveTab('register')}
                 onOpenCheckInModal={onOpenDailyCheckIn}
                 onOpenExportModal={onOpenExportModal}
+                events={events}
+                onNavigateToCalendar={() => {
+                  onClose();
+                  onNavigateToCalendar?.();
+                }}
               />
             </div>
           )}

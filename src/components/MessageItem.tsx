@@ -128,13 +128,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         
         {/* Sender Name and Time */}
         {!isSameSender && (
-          <div className={`flex items-center gap-2 mb-1 px-1 text-xs text-slate-500 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-            <span className="font-semibold text-slate-800">
+          <div className={`flex items-center gap-1.5 mb-1 px-1 text-xs text-slate-500 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+            <span className="font-bold text-slate-900">
               {sender.name}
             </span>
-            <span className="text-[11px] text-slate-400">
-              {sender.role}
-            </span>
+            {sender.familyRole && (
+              <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-md">
+                {sender.familyRole}
+              </span>
+            )}
+            {sender.role && sender.role !== sender.familyRole && (
+              <span className="text-[10px] text-slate-400">
+                ({sender.role})
+              </span>
+            )}
             <span aria-hidden="true" className="text-slate-300">·</span>
             <span className="text-[11px] text-slate-400 font-mono">
               {formatTimestamp(message.timestamp)}
