@@ -30,7 +30,8 @@ import {
   AdminCredentials,
   SentInviteEmail,
   DailyCheckInRecord,
-  SecurityAuditLog
+  SecurityAuditLog,
+  MilestoneCelebration
 } from './types/family';
 
 import { 
@@ -45,7 +46,8 @@ import {
   INITIAL_SENT_EMAILS,
   INITIAL_CHECKIN_RECORDS,
   INITIAL_FAMILY_UNITS,
-  INITIAL_SECURITY_LOGS
+  INITIAL_SECURITY_LOGS,
+  INITIAL_MILESTONES
 } from './data/initialData';
 
 import { Sidebar } from './components/Sidebar';
@@ -54,7 +56,7 @@ import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { FamilyAlbumTab, PhotoMemory } from './components/FamilyAlbumTab';
 import { SharedMediaTab } from './components/SharedMediaTab';
-import { ListTab } from './components/ListTab';
+import { MilestonesCelebrationsTab } from './components/MilestonesCelebrationsTab';
 import { CalendarTab } from './components/CalendarTab';
 import { CallModal } from './components/CallModal';
 import { NoticeBoardModal } from './components/NoticeBoardModal';
@@ -71,10 +73,12 @@ import { FamilySettingsModal } from './components/FamilySettingsModal';
 import { FamilyTab } from './components/FamilyTab';
 import { FamilyPresencePanel } from './components/FamilyPresencePanel';
 import { FamilyUnitsModal } from './components/FamilyUnitsModal';
+import { FamilyAuthLanding } from './components/FamilyAuthLanding';
+import { SuperAdminModal } from './components/SuperAdminModal';
 
 import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
-const STORAGE_KEY = 'kinfolk_family_hub_v3_structured';
+const STORAGE_KEY = 'kinfolk_family_lineage_v4_pristine';
 
 // Automated purge of legacy chaotic data keys to ensure a fresh, pristine system
 try {
@@ -89,7 +93,8 @@ try {
     'kinfolk_family_hub_data_v1_admin_creds',
     'kinfolk_family_hub_data_v1_sent_emails',
     'kinfolk_family_hub_data_v1_checkin_history',
-    'kinfolk_family_hub_data_v2'
+    'kinfolk_family_hub_data_v2',
+    'kinfolk_family_hub_v3_structured'
   ];
   legacyStorageKeys.forEach((key) => localStorage.removeItem(key));
 } catch {
@@ -156,8 +161,18 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family'>('chat');
 
+  const [milestones, setMilestones] = useState<MilestoneCelebration[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_milestones');
+      return saved ? JSON.parse(saved) : INITIAL_MILESTONES;
+    } catch {
+      return INITIAL_MILESTONES;
+    }
+  });
+
+  const [isSuperAdminModalOpen, setIsSuperAdminModalOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -358,6 +373,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_chores', JSON.stringify(chores));
   }, [chores]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_milestones', JSON.stringify(milestones));
+  }, [milestones]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY + '_events', JSON.stringify(events));
@@ -657,6 +676,137 @@ export default function App() {
         }
       }, 2000);
     }
+  };
+
+  // --- Milestones & Celebrations Handlers ---
+  const handleAddMilestone = (newMilestone: Omit<MilestoneCelebration, 'id' | 'createdAt'>) => {
+    const created: MilestoneCelebration = {
+      ...newMilestone,
+      id: `milestone-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setMilestones((prev) => [created, ...prev]);
+    playSuccessCelebration();
+
+    // Auto-post a celebration announcement into the celebrations room
+    const announcementMsg: Message = {
+      id: `msg-mile-${Date.now()}`,
+      channelId: 'celebrations',
+      senderId: activeMemberId,
+      content: `🎉 **FAMILY CELEBRATION ANNOUNCED** 🎉\n\n**${created.title}** honoring **${created.honoreeName}**!\n📅 Date: ${created.date} ${created.time ? `at ${created.time}` : ''}\n📍 Location: ${created.location}\n\nJoin the Milestones & Celebrations hub to RSVP, choose preparation duties, and share your blessings!`,
+      timestamp: 'Just now',
+      reactions: { '🎉': [activeMemberId], '❤️': [activeMemberId] },
+      readBy: [activeMemberId],
+    };
+    setMessages((prev) => [...prev, announcementMsg]);
+  };
+
+  const handleToggleMilestoneTask = (milestoneId: string, taskId: string) => {
+    playReactionPop(isMuted);
+    setMilestones((prev) =>
+      prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        return {
+          ...m,
+          organizingTasks: m.organizingTasks.map((t) =>
+            t.id === taskId ? { ...t, completed: !t.completed } : t
+          ),
+        };
+      })
+    );
+  };
+
+  const handleAddMilestoneTask = (milestoneId: string, taskTitle: string, assignedToName?: string) => {
+    setMilestones((prev) =>
+      prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        return {
+          ...m,
+          organizingTasks: [
+            ...m.organizingTasks,
+            { id: `task-${Date.now()}`, title: taskTitle, assignedToName, completed: false },
+          ],
+        };
+      })
+    );
+  };
+
+  const handleUpdateMilestoneRsvp = (
+    milestoneId: string,
+    status: 'attending' | 'maybe' | 'declined',
+    guestsCount: number
+  ) => {
+    setMilestones((prev) =>
+      prev.map((m) => {
+        if (m.id !== milestoneId) return m;
+        const otherRsvps = m.rsvps.filter((r) => r.memberId !== activeMemberId);
+        return {
+          ...m,
+          rsvps: [
+            ...otherRsvps,
+            { memberId: activeMemberId, memberName: activeMember.name, status, guestsCount },
+          ],
+        };
+      })
+    );
+  };
+
+  const handleAddMilestoneBlessing = (milestoneId: string, message: string) => {
+    const newBlessing = {
+      id: `bless-${Date.now()}`,
+      memberId: activeMemberId,
+      memberName: activeMember.name,
+      message,
+      timestamp: new Date().toISOString(),
+    };
+    setMilestones((prev) =>
+      prev.map((m) =>
+        m.id === milestoneId ? { ...m, blessings: [...m.blessings, newBlessing] } : m
+      )
+    );
+    playSendChime(isMuted);
+  };
+
+  const handleAnnounceMilestoneInChat = (text: string, channelId: string = 'celebrations') => {
+    const msg: Message = {
+      id: `msg-${Date.now()}`,
+      channelId,
+      senderId: activeMemberId,
+      content: text,
+      timestamp: 'Just now',
+      reactions: { '🎉': [activeMemberId] },
+      readBy: [activeMemberId],
+    };
+    setMessages((prev) => [...prev, msg]);
+    playSendChime(isMuted);
+  };
+
+  const handleRevokeAdmin = (adminMemberId: string, reason: string) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === adminMemberId ? { ...m, isAdmin: false, role: 'Lineage Member' } : m
+      )
+    );
+    const targetMember = members.find((m) => m.id === adminMemberId);
+    const auditLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'SUPER_ADMIN_REVOKE_ADMIN',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (Super Admin)`,
+      targetId: adminMemberId,
+      targetName: targetMember?.name,
+      details: `Super Admin revoked administrator privileges for ${targetMember?.name || adminMemberId}. Reason: ${reason}`,
+    };
+    setSecurityLogs((prev) => [auditLog, ...prev]);
+  };
+
+  const handleToggleOnlinePresence = (memberId: string) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === memberId ? { ...m, isOnline: !m.isOnline } : m
+      )
+    );
   };
 
   // --- Groceries & Chores Handlers ---
@@ -1128,6 +1278,102 @@ export default function App() {
     }
   };
 
+  if (!activeMemberId || !activeMember) {
+    return (
+      <FamilyAuthLanding
+        existingMembers={members}
+        securityLogs={securityLogs}
+        onLoginMember={(id) => {
+          setActiveMemberId(id);
+          const m = members.find((x) => x.id === id);
+          if (m?.isAdmin) setIsAdminLoggedIn(true);
+        }}
+        onLoginWithCredentials={(email, pass) => {
+          const m = members.find(
+            (x) =>
+              (x.email?.toLowerCase() === email.toLowerCase() || x.name.toLowerCase() === email.toLowerCase()) &&
+              x.password === pass
+          );
+          if (m) {
+            setActiveMemberId(m.id);
+            if (m.isAdmin) setIsAdminLoggedIn(true);
+            return true;
+          }
+          if (email.toLowerCase() === adminCredentials.email.toLowerCase() && pass === adminCredentials.password) {
+            setActiveMemberId(adminCredentials.mainMemberId);
+            setIsAdminLoggedIn(true);
+            return true;
+          }
+          return false;
+        }}
+        onRegisterFamilyHead={(data) => {
+          const newId = `head-${Date.now()}`;
+          const newHeadMember: FamilyMember = {
+            id: newId,
+            name: data.name,
+            role: 'Family Head & Admin',
+            familyRole: data.familyRole,
+            avatarColor: 'bg-emerald-600',
+            status: `Leading ${data.familyName}`,
+            statusEmoji: '👑',
+            moodEmoji: '✨',
+            shortStatus: 'Online',
+            lastCheckInTime: 'Just now',
+            lastActiveTime: 'Active now',
+            checkInNote: 'Registered as verified Family Head',
+            relationship: `${data.familyRole} & Lineage Head`,
+            email: data.email,
+            password: data.password,
+            isOnline: true,
+            isAdmin: true,
+            isSuperAdmin: false,
+            adminVerified: true,
+            nationalIdNumber: data.nationalIdNumber,
+            age: data.age,
+            hasChildren: true,
+            childrenCount: data.childrenCount,
+            generation: 'Generation I (Family Elders)',
+            hasChatAccess: true,
+            accessGrantedAt: new Date().toISOString(),
+            accessGrantedBy: 'Super Admin System',
+            joinedAt: new Date().toISOString(),
+          };
+
+          const newUnit: FamilyUnit = {
+            id: `unit-${Date.now()}`,
+            name: data.familyName,
+            description: `Lineage branch managed by ${data.name}`,
+            leaderId: newId,
+            leaderName: data.name,
+            leaderEmail: data.email,
+            appointedAt: new Date().toISOString(),
+            appointedBy: 'Super Admin System',
+            color: 'bg-emerald-500',
+            createdAt: new Date().toISOString(),
+          };
+
+          const auditLog: SecurityAuditLog = {
+            id: `log-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            action: 'REGISTER_FAMILY_HEAD',
+            performedById: newId,
+            performedByName: `${data.name} (Family Head)`,
+            targetId: newId,
+            targetName: data.name,
+            details: `Verified Family Head registered with National ID ${data.nationalIdNumber}, age ${data.age}, and ${data.childrenCount} children.`,
+          };
+
+          setMembers((prev) => [...prev, newHeadMember]);
+          setFamilyUnits((prev) => [...prev, newUnit]);
+          setSecurityLogs((prev) => [auditLog, ...prev]);
+          setActiveMemberId(newId);
+          setIsAdminLoggedIn(true);
+          setFamilyName(data.familyName);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white text-slate-900 font-sans">
       
@@ -1158,6 +1404,8 @@ export default function App() {
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
+        onOpenSuperAdminModal={() => setIsSuperAdminModalOpen(true)}
+        onSignOut={() => setActiveMemberId(null)}
         familyUnits={familyUnits}
         isLivelyMode={isLivelyMode}
         onToggleLivelyMode={() => setIsLivelyMode(!isLivelyMode)}
@@ -1202,6 +1450,8 @@ export default function App() {
                 isPresencePanelOpen={isPresencePanelOpen}
                 onTogglePresencePanel={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
                 onOpenFamilyUnitsModal={() => setIsFamilyUnitsModalOpen(true)}
+                onToggleOnlinePresence={handleToggleOnlinePresence}
+                onSignOut={() => setActiveMemberId(null)}
               />
 
               {/* Chat Messages Feed */}
@@ -1297,19 +1547,17 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'lists' && (
-          <ListTab
-            members={members}
-            activeMemberId={activeMemberId}
-            groceries={groceries}
-            chores={chores}
-            onToggleGrocery={handleToggleGrocery}
-            onAddGrocery={handleAddGrocery}
-            onDeleteGrocery={handleDeleteGrocery}
-            onToggleChore={handleToggleChore}
-            onAddChore={handleAddChore}
-            onDeleteChore={handleDeleteChore}
-            onShareToChat={handleShareToChat}
+        {activeTab === 'celebrations' && (
+          <MilestonesCelebrationsTab
+            milestones={milestones}
+            activeMember={activeMember}
+            allMembers={members}
+            onAddMilestone={handleAddMilestone}
+            onToggleTask={handleToggleMilestoneTask}
+            onAddTask={handleAddMilestoneTask}
+            onUpdateRsvp={handleUpdateMilestoneRsvp}
+            onAddBlessing={handleAddMilestoneBlessing}
+            onAnnounceInChat={handleAnnounceMilestoneInChat}
           />
         )}
 
@@ -1362,9 +1610,19 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setActiveTab('celebrations')}
+            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
+              activeTab === 'celebrations' ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Events</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('media')}
             className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
-              activeTab === 'media' ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+              activeTab === 'media' ? 'text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <FolderHeart className="w-4 h-4" />
@@ -1379,16 +1637,6 @@ export default function App() {
           >
             <Camera className="w-4 h-4" />
             <span className="text-[9px] mt-1">Moments</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('lists')}
-            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
-              activeTab === 'lists' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span className="text-[9px] mt-1">Lists</span>
           </button>
 
           <button

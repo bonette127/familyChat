@@ -98,28 +98,45 @@ export const MessageList: React.FC<MessageListProps> = ({
       ref={containerRef}
       className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 space-y-4 bg-slate-50/50"
     >
-      {messages.map((msg, index) => {
-        const prevMsg = messages[index - 1];
-        const isSameSender = prevMsg ? prevMsg.senderId === msg.senderId : false;
+      {messages.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-full py-16 text-center max-w-md mx-auto space-y-3">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-3xl shadow-inner">
+            🛋️
+          </div>
+          <h3 className="text-base font-bold text-slate-800 font-display">
+            The Family Living Room is Clean & Ready
+          </h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            All previous clutter and mock data have been stripped out. As the Family Head, you can send the very first message below, announce a family milestone, or register members to join your private circle.
+          </p>
+          <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl font-semibold">
+            <span>👑 Admin Space • Ready for Testing</span>
+          </div>
+        </div>
+      ) : (
+        messages.map((msg, index) => {
+          const prevMsg = messages[index - 1];
+          const isSameSender = prevMsg ? prevMsg.senderId === msg.senderId : false;
 
-        return (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            members={members}
-            activeMemberId={activeMemberId}
-            isSameSender={isSameSender}
-            isSelected={selectedMessageId === msg.id}
-            onSelectForReaction={onSelectMessage}
-            onReact={onReact}
-            onVotePoll={onVotePoll}
-            onTogglePin={onTogglePin}
-            onReplyTo={onReplyTo}
-            onOpenImageLightbox={onOpenImageLightbox}
-            onViewReadReceipts={setSelectedReadReceiptsMsg}
-          />
-        );
-      })}
+          return (
+            <MessageItem
+              key={msg.id}
+              message={msg}
+              members={members}
+              activeMemberId={activeMemberId}
+              isSameSender={isSameSender}
+              isSelected={selectedMessageId === msg.id}
+              onSelectForReaction={onSelectMessage}
+              onReact={onReact}
+              onVotePoll={onVotePoll}
+              onTogglePin={onTogglePin}
+              onReplyTo={onReplyTo}
+              onOpenImageLightbox={onOpenImageLightbox}
+              onViewReadReceipts={setSelectedReadReceiptsMsg}
+            />
+          );
+        })
+      )}
       <div ref={bottomRef} />
 
       {/* Read Receipts Detail Modal */}

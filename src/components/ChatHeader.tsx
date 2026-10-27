@@ -40,10 +40,11 @@ interface ChatHeaderProps {
   onOpenRegisterMember?: () => void;
   onOpenMemberLogin?: () => void;
   onOpenSettings?: () => void;
-  sentEmailsCount?: number;
   isPresencePanelOpen?: boolean;
   onTogglePresencePanel?: () => void;
   onOpenFamilyUnitsModal?: () => void;
+  onToggleOnlinePresence?: (memberId: string) => void;
+  onSignOut?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -65,10 +66,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onOpenRegisterMember,
   onOpenMemberLogin,
   onOpenSettings,
-  sentEmailsCount = 0,
   isPresencePanelOpen,
   onTogglePresencePanel,
   onOpenFamilyUnitsModal,
+  onToggleOnlinePresence,
+  onSignOut,
 }) => {
   const [isPinnedDismissed, setIsPinnedDismissed] = useState(false);
 
@@ -89,17 +91,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-lg shrink-0">
-                {currentChannel.name === 'general' ? '🛋️' : currentChannel.name === 'dinner' ? '🍲' : currentChannel.name === 'groceries' ? '🛒' : currentChannel.name === 'plans' ? '📅' : '💬'}
+                {currentChannel.name === 'general' ? '🛋️' : currentChannel.name === 'celebrations' ? '🎉' : currentChannel.name === 'lineage' ? '🌳' : '💬'}
               </span>
               <h2 className="text-base font-bold text-slate-900 truncate font-display">
                 {currentChannel.name === 'general'
                   ? 'Family Living Room'
-                  : currentChannel.name === 'dinner'
-                  ? 'Sunday Dinner & Recipes'
-                  : currentChannel.name === 'groceries'
-                  ? 'Shared Groceries & Errands'
-                  : currentChannel.name === 'plans'
-                  ? 'Family Outings & Events'
+                  : currentChannel.name === 'celebrations'
+                  ? 'Weddings & Celebrations'
+                  : currentChannel.name === 'lineage'
+                  ? 'Lineage & Heritage'
                   : `#${currentChannel.name}`}
               </h2>
             </div>
@@ -268,8 +268,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             className="flex items-center gap-2 pl-2 pr-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors border border-slate-200/70"
             title="Switch chatting profile"
           >
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 ${activeMember.avatarColor}`}>
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0 relative ${activeMember.avatarColor}`}>
               {activeMember.name.charAt(0)}
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${
+                  activeMember.isOnline ? 'bg-emerald-500' : 'bg-slate-400'
+                }`}
+              />
             </div>
             <div className="flex items-center gap-1 min-w-0">
               <span className="text-xs font-bold truncate max-w-[90px] sm:max-w-none text-slate-900">
@@ -283,6 +288,33 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
             <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </button>
+
+          {/* Quick Online/Offline Toggle */}
+          {onToggleOnlinePresence && (
+            <button
+              onClick={() => onToggleOnlinePresence(activeMember.id)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-xl text-[11px] font-bold border transition-colors ${
+                activeMember.isOnline
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+              title="Click to toggle your presence: Online vs Offline"
+            >
+              <span className={`w-2 h-2 rounded-full ${activeMember.isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              <span className="hidden sm:inline">{activeMember.isOnline ? 'Online' : 'Offline'}</span>
+            </button>
+          )}
+
+          {/* Sign Out to Lineage Gate */}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              title="Sign Out to Lineage Portal"
+            >
+              <LogIn className="w-4 h-4 rotate-180" />
+            </button>
+          )}
 
         </div>
       </div>

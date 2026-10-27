@@ -23,7 +23,11 @@ export interface SecurityAuditLog {
     | 'GRANT_CHAT_ACCESS'
     | 'REVOKE_CHAT_ACCESS'
     | 'RESET_PASSWORD'
-    | 'SYSTEM_RESET';
+    | 'SYSTEM_RESET'
+    | 'SUPER_ADMIN_REVOKE_ADMIN'
+    | 'REGISTER_FAMILY_HEAD'
+    | 'UPDATE_PROFILE'
+    | 'ADMIN_CREDENTIALS_UPDATE';
   performedById: string;
   performedByName: string;
   targetId?: string;
@@ -53,7 +57,15 @@ export interface FamilyMember {
   phone?: string;
   email?: string;
   isOnline: boolean; // Active vs Inactive indicator
-  isAdmin?: boolean; // Grand Admin role
+  isAdmin?: boolean; // Grand Admin role (Family Head)
+  isSuperAdmin?: boolean; // Super Admin platform guardian
+  adminVerified?: boolean; // Verified criteria for Family Head
+  nationalIdNumber?: string; // National ID verification
+  age?: number; // Must be over 25
+  hasChildren?: boolean; // Must have children (representing family)
+  childrenCount?: number;
+  generation?: string; // Generational branch (e.g., Generation I - Elders)
+  joinedAt?: string;
   isLeader?: boolean; // Appointed Unit Leader role
   familyUnitId?: string; // ID of the Family Unit they belong to
   familyUnitName?: string; // Name of the Family Unit
@@ -65,6 +77,41 @@ export interface FamilyMember {
   password?: string; // Login password/passcode needed for chat access
   inviteSentAt?: string; // Timestamp when credential email was dispatched
   inviteEmailSentTo?: string; // Target email address
+}
+
+export interface MilestoneCelebration {
+  id: string;
+  title: string; // e.g. "Sophia & Daniel's Wedding Celebration"
+  category: 'wedding' | 'birthday' | 'anniversary' | 'graduation' | 'baby_shower' | 'reunion' | 'other';
+  honoreeName: string;
+  honoreeRole?: string;
+  date: string;
+  time?: string;
+  location: string;
+  description: string;
+  coverPhoto?: string;
+  organizerId: string;
+  organizerName: string;
+  organizingTasks: {
+    id: string;
+    title: string;
+    assignedToName?: string;
+    completed: boolean;
+  }[];
+  rsvps: {
+    memberId: string;
+    memberName: string;
+    status: 'attending' | 'maybe' | 'declined';
+    guestsCount: number;
+  }[];
+  blessings: {
+    id: string;
+    memberId: string;
+    memberName: string;
+    message: string;
+    timestamp: string;
+  }[];
+  createdAt: string;
 }
 
 export interface FamilyMilestoneBadge {

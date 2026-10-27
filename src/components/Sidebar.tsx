@@ -22,15 +22,16 @@ import {
   FolderHeart,
   LogIn,
   Settings,
-  CircleDot
+  CircleDot,
+  Gift
 } from 'lucide-react';
 import { Channel, FamilyMember, Message, FamilyUnit } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family';
-  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'lists' | 'calendar' | 'family') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -47,6 +48,8 @@ interface SidebarProps {
   onOpenSettings?: () => void;
   isAdminLoggedIn?: boolean;
   onOpenAdminLogin?: () => void;
+  onOpenSuperAdminModal?: () => void;
+  onSignOut?: () => void;
   isLivelyMode: boolean;
   onToggleLivelyMode: () => void;
   onResetData: () => void;
@@ -75,6 +78,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   isAdminLoggedIn,
   onOpenAdminLogin,
+  onOpenSuperAdminModal,
+  onSignOut,
   isLivelyMode,
   onToggleLivelyMode,
   onResetData,
@@ -321,19 +326,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={() => {
-              onSelectTab('lists');
+              onSelectTab('celebrations');
               onCloseMobile();
             }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-              activeTab === 'lists'
+              activeTab === 'celebrations'
                 ? 'bg-slate-900 text-white shadow-2xs'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            <ShoppingCart className="w-4 h-4 text-amber-400 shrink-0" />
+            <Sparkles className="w-4 h-4 text-rose-400 shrink-0" />
             <div className="text-left min-w-0">
-              <span className="block font-bold text-xs truncate">Shopping & Purchases</span>
-              <span className="text-[10px] opacity-75 font-normal block truncate">Shared groceries & errands</span>
+              <span className="block font-bold text-xs truncate">Milestones & Celebrations</span>
+              <span className="text-[10px] opacity-75 font-normal block truncate">Weddings, birthdays & reunions</span>
             </div>
           </button>
 
@@ -760,6 +765,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
+          {/* Super Admin Console Button */}
+          {onOpenSuperAdminModal && (activeMember.isSuperAdmin || activeMember.isAdmin) && (
+            <button
+              onClick={onOpenSuperAdminModal}
+              className="w-full py-1.5 px-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 text-xs font-bold transition-colors flex items-center justify-between"
+              title="Super Admin Lineage Oversight"
+            >
+              <span className="flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Super Admin Console</span>
+              </span>
+              <ChevronRight className="w-3 h-3 text-indigo-400" />
+            </button>
+          )}
+
+          {/* Sign Out to Lineage Gate */}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="w-full py-1.5 px-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium transition-colors flex items-center justify-between"
+              title="Sign out of current account and return to Portal"
+            >
+              <span className="flex items-center gap-1.5">
+                <LogIn className="w-3.5 h-3.5 text-rose-500 rotate-180" />
+                <span>Sign Out of Lineage</span>
+              </span>
+              <ChevronRight className="w-3 h-3 text-slate-400" />
+            </button>
+          )}
+
           {/* Reset Demo Data */}
           <button
             onClick={onResetData}
@@ -767,7 +802,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title="Reset messages and family data to default"
           >
             <RotateCcw className="w-3 h-3" />
-            <span>Reset Family Chat Demo</span>
+            <span>Reset Family Chat</span>
           </button>
         </div>
 
