@@ -7,9 +7,12 @@ import {
   MapPin, 
   Play, 
   Pause, 
-  Check, 
-  CheckCheck, 
-  Eye
+  Eye,
+  Search,
+  Filter,
+  X,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { Attachment, FamilyMember, Message } from '../types/family';
 
@@ -45,6 +48,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [showReactionMenu, setShowReactionMenu] = useState(false);
+  const [isSeenTooltipOpen, setIsSeenTooltipOpen] = useState(false);
+  const [seenSearchQuery, setSeenSearchQuery] = useState('');
+  const [seenFilterTab, setSeenFilterTab] = useState<'all' | 'read' | 'unread'>('all');
 
   const quickReactions = ['❤️', '👍', '😂', '🍲', '🎉', '🙏', '🐶', '👏'];
 
@@ -100,6 +106,27 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const readers = readByList
     .filter((id) => id !== message.senderId)
     .map((id) => getMember(id));
+
+  // If only the author has seen or read it, include author so it's clear who has seen it
+  const allWhoSeen = readByList.map((id) => getMember(id));
+  const displayReaders = readers.length > 0 ? readers : allWhoSeen;
+
+  const targetMembers = members;
+  const unreadMembers = targetMembers.filter((m) => !readByList.includes(m.id));
+
+  const filteredTooltipMembers = targetMembers.filter((m) => {
+    const isRead = readByList.includes(m.id);
+    if (seenFilterTab === 'read' && !isRead) return false;
+    if (seenFilterTab === 'unread' && isRead) return false;
+    if (seenSearchQuery.trim()) {
+      const q = seenSearchQuery.toLowerCase();
+      const matchName = m.name.toLowerCase().includes(q);
+      const matchRole = (m.familyRole || m.role || '').toLowerCase().includes(q);
+      const matchRel = (m.relationship || '').toLowerCase().includes(q);
+      return matchName || matchRole || matchRel;
+    }
+    return true;
+  });
 
   const hasBeenReadByOthers = readers.length > 0;
   const isReadByAllOthers = otherFamilyMembers.length > 0 && readers.length >= otherFamilyMembers.length;
@@ -374,212 +401,290 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           )}
         </div>
 
-        {/* Small 'read' status row (checkmarks + list of avatars) */}
+        {/* Seen By / Delivery Status Bar with Search & Visual Filter */}
         <div
-          className={`flex items-center gap-1.5 mt-1 px-1 select-none transition-opacity ${
+          className={`relative flex items-center gap-1.5 mt-1 px-1 flex-wrap ${
             isMe ? 'justify-end' : 'justify-start'
           }`}
         >
-          {isMe ? (
-            // Sent by active member
-            <button
-              type="button"
-              onClick={() => onViewReadReceipts(message)}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors group/readstatus"
-              title={
-                hasBeenReadByOthers
-                  ? `Read by: ${readers.map((r) => r.name).join(', ')}`
-                  : 'Delivered (Not yet read by others)'
-              }
-            >
-              {hasBeenReadByOthers ? (
-                <>
-                  {/* Small double checkmark */}
-                  <span className="flex items-center text-emerald-600">
-                    <CheckCheck className="w-3.5 h-3.5" />
-                  </span>
+          {readers.length > 0 ? (
+            <div className="relative inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIsSeenTooltipOpen(!isSeenTooltipOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all cursor-pointer text-[10px] font-medium shadow-2xs group/seen ${
+                  isSeenTooltipOpen
+                    ? 'bg-emerald-100 border-emerald-300 text-emerald-900 ring-2 ring-emerald-400/30'
+                    : 'bg-emerald-50/90 hover:bg-emerald-100 border-emerald-200/80 text-emerald-800'
+                }`}
+                title="Click to search or filter family members who have seen this message"
+              >
+                <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
 
-                  {/* List of avatars of family members who read it */}
-                  <div className="flex -space-x-1.5 items-center">
-                    {readers.slice(0, 4).map((reader) => (
-                      <div
-                        key={reader.id}
-                        className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold ring-1.5 ring-white shadow-2xs ${reader.avatarColor}`}
-                        title={`Read by ${reader.name}`}
-                      >
-                        {reader.name.charAt(0)}
-                      </div>
-                    ))}
-                    {readers.length > 4 && (
-                      <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[8px] font-bold flex items-center justify-center ring-1.5 ring-white">
-                        +{readers.length - 4}
-                      </span>
-                    )}
-                  </div>
+                {/* Viewer avatar circles */}
+                <div className="flex -space-x-1.5 items-center">
+                  {readers.slice(0, 4).map((reader) => (
+                    <div
+                      key={reader.id}
+                      className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold ring-1.5 ring-white ${reader.avatarColor}`}
+                      title={`Seen by ${reader.name}`}
+                    >
+                      {reader.name.charAt(0)}
+                    </div>
+                  ))}
+                  {readers.length > 4 && (
+                    <span className="w-3.5 h-3.5 rounded-full bg-emerald-200 text-emerald-900 text-[8px] font-bold flex items-center justify-center ring-1.5 ring-white">
+                      +{readers.length - 4}
+                    </span>
+                  )}
+                </div>
 
-                  <span className="text-[10px] text-slate-400 group-hover/readstatus:text-slate-600 group-hover/readstatus:underline font-medium">
-                    {isReadByAllOthers
-                      ? 'Read by all'
-                      : `Read by ${readers.map((r) => r.name.split(' ')[0]).join(', ')}`}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] text-slate-400">Delivered</span>
-                </>
-              )}
-            </button>
+                {/* Explicit Seen by Names list */}
+                <span className="font-bold text-emerald-900 group-hover/seen:underline">
+                  Seen by {readers.map((r) => (r.id === activeMemberId ? 'you' : r.name)).join(', ')}
+                </span>
+              </button>
+
+              {/* Quick Search Tooltip Toggle Icon */}
+              <button
+                type="button"
+                onClick={() => setIsSeenTooltipOpen(!isSeenTooltipOpen)}
+                className={`p-1 rounded-full border text-[10px] transition-colors flex items-center justify-center ${
+                  isSeenTooltipOpen
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                    : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-500 hover:text-slate-800'
+                }`}
+                title="Quick search who read this message"
+              >
+                <Search className="w-3 h-3" />
+              </button>
+            </div>
           ) : (
-            // Received from another family member
-            <button
-              type="button"
-              onClick={() => onViewReadReceipts(message)}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors group/readstatus"
-              title={hasBeenReadByOthers ? `Seen by: ${readers.map((r) => r.name).join(', ')}` : 'Delivered to family'}
-            >
-              {hasBeenReadByOthers ? (
-                <>
-                  <span className="flex items-center text-emerald-600">
-                    <CheckCheck className="w-3.5 h-3.5" />
-                  </span>
-                  {/* List of avatars of members who read this message */}
-                  <div className="flex -space-x-1 items-center">
-                    {readers.slice(0, 4).map((reader) => (
-                      <div
-                        key={reader.id}
-                        className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold ring-1.5 ring-white shadow-2xs ${reader.avatarColor}`}
-                        title={`Seen by ${reader.name}`}
-                      >
-                        {reader.name.charAt(0)}
-                      </div>
-                    ))}
-                    {readers.length > 4 && (
-                      <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[8px] font-bold flex items-center justify-center ring-1.5 ring-white">
-                        +{readers.length - 4}
-                      </span>
-                    )}
-                  </div>
+            <div className="relative inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIsSeenTooltipOpen(!isSeenTooltipOpen)}
+                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-700 transition-colors cursor-pointer group/del p-0.5 rounded-md hover:bg-slate-100"
+                title="Delivered. Click to search family read status"
+              >
+                <Clock className="w-3 h-3 text-slate-400 group-hover/del:text-emerald-600" />
+                <span>Delivered</span>
+                <Search className="w-2.5 h-2.5 text-slate-400 ml-0.5 opacity-60 group-hover/del:opacity-100" />
+              </button>
+            </div>
+          )}
 
-                  <span className="text-[10px] text-slate-400 group-hover/readstatus:underline">
-                    Seen by {readers.map((r) => r.id === activeMemberId ? 'you' : r.name.split(' ')[0]).join(', ')}
+          {/* Interactive Seen By Tooltip Popover with Visual Filter and Search Bar */}
+          {isSeenTooltipOpen && (
+            <div
+              className={`absolute z-30 w-76 bg-white rounded-2xl border border-slate-200 shadow-xl p-3 text-slate-800 animate-in fade-in zoom-in-95 duration-150 ${
+                isMe ? 'right-0 top-full mt-1.5' : 'left-0 top-full mt-1.5'
+              }`}
+            >
+              {/* Tooltip Header */}
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                <div className="flex items-center gap-1.5">
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold font-display text-slate-900">
+                    Who has seen this message?
                   </span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-3 h-3 text-slate-400" />
-                  <span className="text-[10px] text-slate-400">Delivered</span>
-                </>
-              )}
-            </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSeenTooltipOpen(false);
+                    setSeenSearchQuery('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Real-Time Search Bar */}
+              <div className="relative mb-2">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Filter by name or role (e.g. Mary, Aunt)..."
+                  value={seenSearchQuery}
+                  onChange={(e) => setSeenSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400 text-slate-800"
+                  autoFocus
+                />
+                {seenSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSeenSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {/* Visual Filter Tabs */}
+              <div className="flex items-center gap-1 mb-2 bg-slate-100/90 p-0.5 rounded-xl text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setSeenFilterTab('all')}
+                  className={`flex-1 py-1 rounded-lg font-semibold transition-all ${
+                    seenFilterTab === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  All ({targetMembers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeenFilterTab('read')}
+                  className={`flex-1 py-1 rounded-lg font-semibold transition-all flex items-center justify-center gap-1 ${
+                    seenFilterTab === 'read'
+                      ? 'bg-white text-emerald-700 shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Eye className="w-3 h-3 text-emerald-600" />
+                  <span>Seen ({readers.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeenFilterTab('unread')}
+                  className={`flex-1 py-1 rounded-lg font-semibold transition-all flex items-center justify-center gap-1 ${
+                    seenFilterTab === 'unread'
+                      ? 'bg-white text-slate-800 shadow-2xs font-bold'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  <span>Unread ({unreadMembers.length})</span>
+                </button>
+              </div>
+
+              {/* Members List with Read/Unread Status */}
+              <div className="space-y-1 max-h-48 overflow-y-auto pr-0.5 custom-scrollbar">
+                {filteredTooltipMembers.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-slate-400">
+                    No family members match your filter
+                  </div>
+                ) : (
+                  filteredTooltipMembers.map((m) => {
+                    const hasRead = readByList.includes(m.id);
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between p-1.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${m.avatarColor}`}
+                          >
+                            {m.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0 truncate">
+                            <p className="text-xs font-semibold text-slate-800 truncate leading-tight">
+                              {m.name} {m.id === activeMemberId && '(You)'}
+                            </p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {m.familyRole || m.role}
+                            </p>
+                          </div>
+                        </div>
+
+                        {hasRead ? (
+                          <span className="shrink-0 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60 flex items-center gap-1">
+                            <Eye className="w-3 h-3 text-emerald-600" />
+                            <span>Seen</span>
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[10px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5 text-slate-400" />
+                            <span>Not yet</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Tooltip Footer with Full Audit Button */}
+              <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">
+                  {readers.length} of {targetMembers.length} family read
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSeenTooltipOpen(false);
+                    onViewReadReceipts(message);
+                  }}
+                  className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Detailed Modal</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Reactions Bar Below Bubble */}
-        {Object.keys(message.reactions).length > 0 && (
-          <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-            {Object.entries(message.reactions).map(([emoji, memberIds]) => {
-              if (memberIds.length === 0) return null;
-              const hasMyReact = memberIds.includes(activeMemberId);
-              return (
-                <button
-                  key={emoji}
-                  onClick={() => onReact(message.id, emoji)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors border ${
-                    hasMyReact
-                      ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                  title={memberIds.map((m) => getMember(m).name).join(', ')}
-                >
-                  <span>{emoji}</span>
-                  <span className="text-[10px] font-mono">{memberIds.length}</span>
-                </button>
-              );
-            })}
+        {/* Clean, Intuitive Heart / Like Pill Below Bubble */}
+        {message.reactions?.['❤️'] && message.reactions['❤️'].length > 0 && (
+          <div className={`flex mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+            <button
+              type="button"
+              onClick={() => onReact(message.id, '❤️')}
+              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs transition-all border ${
+                message.reactions['❤️'].includes(activeMemberId)
+                  ? 'bg-rose-50 border-rose-200 text-rose-600 font-bold shadow-2xs'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+              title={`Liked by: ${message.reactions['❤️'].map((id) => getMember(id).name).join(', ')}`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${message.reactions['❤️'].includes(activeMemberId) ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}`} />
+              <span className="text-[11px] font-mono">{message.reactions['❤️'].length}</span>
+            </button>
           </div>
         )}
 
-        {/* Hover Floating Action Bar */}
+        {/* Clean Hover Action Bar */}
         <div
-          className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1 shadow-md z-20 ${
+          className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1.5 py-1 shadow-md z-20 ${
             isMe ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'
           }`}
         >
-          {/* Quick React Direct Common Family Emojis (No menu needed) */}
-          <div className="flex items-center gap-0.5 border-r border-slate-200 pr-1 mr-0.5">
-            {['❤️', '😂', '👍', '🎉'].map((emoji) => {
-              const hasReacted = message.reactions[emoji]?.includes(activeMemberId);
-              return (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => onReact(message.id, emoji)}
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs transition-transform hover:scale-130 active:scale-90 ${
-                    hasReacted ? 'bg-amber-100 font-bold scale-110' : 'hover:bg-slate-100'
-                  }`}
-                  title={`Quick React: ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              );
-            })}
-          </div>
+          {/* 1-Click Clean Like Button */}
+          <button
+            type="button"
+            onClick={() => onReact(message.id, '❤️')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+              message.reactions?.['❤️']?.includes(activeMemberId)
+                ? 'bg-rose-50 text-rose-600 font-bold'
+                : 'text-slate-600 hover:text-rose-600 hover:bg-slate-100'
+            }`}
+            title={message.reactions?.['❤️']?.includes(activeMemberId) ? 'Unlike' : 'Heart / Like message'}
+          >
+            <Heart className={`w-3.5 h-3.5 ${message.reactions?.['❤️']?.includes(activeMemberId) ? 'fill-rose-500 text-rose-500' : ''}`} />
+            <span>Like</span>
+          </button>
 
-          {/* Quick React Select Button */}
-          {onSelectForReaction && (
-            <button
-              onClick={() => onSelectForReaction(message)}
-              className={`p-1 rounded-md transition-colors ${
-                isSelected
-                  ? 'text-amber-600 bg-amber-50 font-bold'
-                  : 'text-slate-500 hover:text-amber-600 hover:bg-slate-100'
-              }`}
-              title={isSelected ? 'Selected for quick reaction bar' : 'Select message for input reaction bar'}
-            >
-              <Heart className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          {/* More Emojis Trigger */}
-          <div className="relative">
-            <button
-              onClick={() => setShowReactionMenu(!showReactionMenu)}
-              className="p-1 rounded-md text-slate-500 hover:text-amber-500 hover:bg-slate-100 transition-colors"
-              title="More emojis"
-            >
-              <Smile className="w-3.5 h-3.5" />
-            </button>
-
-            {showReactionMenu && (
-              <div className="absolute bottom-full mb-1 left-0 bg-white border border-slate-200 rounded-2xl p-1.5 shadow-xl flex items-center gap-1 z-30">
-                {quickReactions.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => {
-                      onReact(message.id, emoji);
-                      setShowReactionMenu(false);
-                    }}
-                    className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-sm transition-transform hover:scale-125"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="w-px h-4 bg-slate-200 my-auto" />
 
           <button
+            type="button"
             onClick={() => onReplyTo(message)}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            title="Reply"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            title="Reply to message"
           >
             <Reply className="w-3.5 h-3.5" />
           </button>
 
           <button
+            type="button"
             onClick={() => onTogglePin(message.id)}
-            className={`p-1 rounded-md transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors ${
               message.isPinned
                 ? 'text-amber-600 bg-amber-50'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
@@ -590,8 +695,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => onViewReadReceipts(message)}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             title="View read details"
           >
             <Eye className="w-3.5 h-3.5" />

@@ -30,8 +30,8 @@ import { Channel, FamilyMember, Message, FamilyUnit } from '../types/family';
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family';
-  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -198,7 +198,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span>{familyName}</span>
                     <Edit2 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100" />
                   </h1>
-                  <p className="text-[11px] text-slate-400">Private Family Circle</p>
+                  <p className="text-[11px] text-emerald-600 font-semibold tracking-wide">Family Forum & Chat</p>
                 </div>
               </div>
 
@@ -306,6 +306,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Main Tab Navigators */}
         <div className="p-3 border-b border-slate-100 space-y-1">
+          {/* Distinct Dashboard depending on Admin vs User */}
+          {activeMember.isAdmin ? (
+            <button
+              onClick={() => {
+                onSelectTab('admin_dashboard');
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                activeTab === 'admin_dashboard'
+                  ? 'bg-slate-900 text-white shadow-xs border-slate-900'
+                  : 'bg-indigo-50/80 hover:bg-indigo-100/90 text-indigo-950 border-indigo-200/90'
+              }`}
+            >
+              <Shield className={`w-4 h-4 shrink-0 ${activeTab === 'admin_dashboard' ? 'text-emerald-400' : 'text-indigo-600'}`} />
+              <div className="text-left min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs truncate">Admin Dashboard</span>
+                  <span className="text-[9px] bg-emerald-500 text-white font-bold px-1.5 py-0.2 rounded-full">
+                    Head
+                  </span>
+                </div>
+                <span className="text-[10px] opacity-75 font-normal block truncate">Lineage & system control</span>
+              </div>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                onSelectTab('user_dashboard');
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                activeTab === 'user_dashboard'
+                  ? 'bg-slate-900 text-white shadow-xs border-slate-900'
+                  : 'bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border-emerald-200/90'
+              }`}
+            >
+              <Users className={`w-4 h-4 shrink-0 ${activeTab === 'user_dashboard' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <div className="text-left min-w-0 flex-1">
+                <span className="block font-bold text-xs truncate">My Family Dashboard</span>
+                <span className="text-[10px] opacity-75 font-normal block truncate">My contributions & milestones</span>
+              </div>
+            </button>
+          )}
+
+          {/* Living Room Chat */}
           <button
             onClick={() => {
               onSelectTab('chat');
@@ -324,6 +369,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
+          {/* Life Milestones & Celebrations */}
           <button
             onClick={() => {
               onSelectTab('celebrations');
@@ -342,6 +388,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
+          {/* Scrapbook Albums */}
           <button
             onClick={() => {
               onSelectTab('album');
@@ -360,6 +407,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
+          {/* Voice Notes & Audio */}
           <button
             onClick={() => {
               onSelectTab('media');
@@ -378,6 +426,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
+          {/* Gatherings & Calendar */}
           <button
             onClick={() => {
               onSelectTab('calendar');
@@ -396,23 +445,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
 
-          <button
-            onClick={() => {
-              onSelectTab('family');
-              onCloseMobile();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-              activeTab === 'family'
-                ? 'bg-slate-900 text-white shadow-2xs'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-4 h-4 text-amber-500 shrink-0" />
-            <div className="text-left min-w-0">
-              <span className="block font-bold text-xs truncate">Family Circle & Badges</span>
-              <span className="text-[10px] opacity-75 font-normal block truncate">Check-ins & milestone awards</span>
-            </div>
-          </button>
+          {/* Admin preview of User Dashboard */}
+          {activeMember.isAdmin && (
+            <button
+              onClick={() => {
+                onSelectTab('user_dashboard');
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                activeTab === 'user_dashboard'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+              }`}
+            >
+              <Users className="w-4 h-4 text-slate-400 shrink-0" />
+              <div className="text-left min-w-0">
+                <span className="block font-bold text-xs truncate">My Personal Space</span>
+                <span className="text-[10px] opacity-75 font-normal block truncate">User view of my contributions</span>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Scrollable Channels & Family Presence */}

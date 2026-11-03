@@ -75,6 +75,8 @@ import { FamilyPresencePanel } from './components/FamilyPresencePanel';
 import { FamilyUnitsModal } from './components/FamilyUnitsModal';
 import { FamilyAuthLanding } from './components/FamilyAuthLanding';
 import { SuperAdminModal } from './components/SuperAdminModal';
+import { AdminDashboard } from './components/AdminDashboard';
+import { UserDashboard } from './components/UserDashboard';
 
 import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
@@ -121,7 +123,7 @@ export default function App() {
     }
   });
 
-  const [activeMemberId, setActiveMemberId] = useState<string>(() => {
+  const [activeMemberId, setActiveMemberId] = useState<string | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_active_member');
       return saved ? JSON.parse(saved) : DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
@@ -161,7 +163,7 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard'>('chat');
 
   const [milestones, setMilestones] = useState<MilestoneCelebration[]>(() => {
     try {
@@ -286,12 +288,13 @@ export default function App() {
   });
 
   // App settings & simulation
-  const [isLivelyMode, setIsLivelyMode] = useState(true);
+  const [isLivelyMode, setIsLivelyMode] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [typingMemberName, setTypingMemberName] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchAcrossAllChannels, setSearchAcrossAllChannels] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Modals
@@ -401,28 +404,40 @@ export default function App() {
   const activeMember = members.find((m) => m.id === activeMemberId) || members[0];
   const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
 
-  // Filter messages for current channel and search
+  // Filter messages: full-text search across all channels or within current channel
   const currentChannelMessages = messages.filter((m) => {
-    if (m.channelId !== currentChannel.id) return false;
-    if (!searchQuery.trim()) return true;
-    return (
-      m.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (m.attachments && m.attachments.some(a => a.caption?.toLowerCase().includes(searchQuery.toLowerCase())))
-    );
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      // Match keywords in message text
+      const matchesContent = m.content.toLowerCase().includes(q);
+      // Match keywords in attachment captions, location names
+      const matchesAttachment = m.attachments && m.attachments.some(
+        (a) => a.caption?.toLowerCase().includes(q) || a.locationName?.toLowerCase().includes(q)
+      );
+      const isKeywordMatch = matchesContent || matchesAttachment;
+
+      if (searchAcrossAllChannels) {
+        return isKeywordMatch;
+      }
+      return m.channelId === currentChannel.id && isKeywordMatch;
+    }
+    return m.channelId === currentChannel.id;
   });
 
   // --- Handlers ---
   const handleMarkAsRead = (messageIds: string[]) => {
+    const currentUserId = activeMemberId || activeMember.id;
+    if (!currentUserId) return;
     setMessages((prev) => {
       let hasChanges = false;
       const next = prev.map((msg) => {
         if (messageIds.includes(msg.id)) {
           const currentRead = msg.readBy || [];
-          if (!currentRead.includes(activeMemberId)) {
+          if (!currentRead.includes(currentUserId)) {
             hasChanges = true;
             return {
               ...msg,
-              readBy: [...currentRead, activeMemberId],
+              readBy: [...currentRead, currentUserId],
             };
           }
         }
@@ -437,16 +452,17 @@ export default function App() {
     attachments?: Attachment[],
     replyTo?: { id: string; senderName: string; text: string }
   ) => {
+    const currentUserId = activeMemberId || activeMember.id;
     playSendChime(isMuted);
 
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
       channelId: currentChannel.id,
-      senderId: activeMemberId,
+      senderId: currentUserId,
       content: text,
       timestamp: new Date().toISOString(),
       reactions: {},
-      readBy: [activeMemberId],
+      readBy: [currentUserId],
       attachments,
       replyTo,
     };
@@ -455,7 +471,7 @@ export default function App() {
 
     // Simulated Lively Family Banter
     if (isLivelyMode) {
-      triggerSimulatedFamilyReaction(newMsg, currentChannel.id, activeMemberId);
+      triggerSimulatedFamilyReaction(newMsg, currentChannel.id, currentUserId);
     }
   };
 
@@ -464,7 +480,8 @@ export default function App() {
     channelId: string,
     senderId: string
   ) => {
-    const potentialRepliers = members.filter((m) => m.id !== senderId);
+    // Exclude the sender AND exclude Admin so the admin is never forced to act as an auto-responder
+    const potentialRepliers = members.filter((m) => m.id !== senderId && !m.isAdmin);
     if (potentialRepliers.length === 0) return;
 
     const randomReplier = potentialRepliers[Math.floor(Math.random() * potentialRepliers.length)];
@@ -550,6 +567,8 @@ export default function App() {
   };
 
   const handleReact = (messageId: string, emoji: string) => {
+    const currentUserId = activeMemberId || activeMember.id;
+    if (!currentUserId) return;
     playReactionPop(isMuted);
 
     setMessages((prev) =>
@@ -558,15 +577,15 @@ export default function App() {
         const currentReactions = { ...msg.reactions };
         const userList = currentReactions[emoji] || [];
 
-        if (userList.includes(activeMemberId)) {
+        if (userList.includes(currentUserId)) {
           // Remove reaction
-          currentReactions[emoji] = userList.filter((id) => id !== activeMemberId);
+          currentReactions[emoji] = userList.filter((id) => id !== currentUserId);
           if (currentReactions[emoji].length === 0) {
             delete currentReactions[emoji];
           }
         } else {
           // Add reaction
-          currentReactions[emoji] = [...userList, activeMemberId];
+          currentReactions[emoji] = [...userList, currentUserId];
         }
 
         return { ...msg, reactions: currentReactions };
@@ -575,6 +594,8 @@ export default function App() {
   };
 
   const handleVotePoll = (messageId: string, optionId: string) => {
+    const currentUserId = activeMemberId || activeMember.id;
+    if (!currentUserId) return;
     playReactionPop(isMuted);
 
     setMessages((prev) =>
@@ -582,19 +603,19 @@ export default function App() {
         if (msg.id !== messageId || !msg.poll) return msg;
 
         const updatedOptions = msg.poll.options.map((opt) => {
-          const hasVoted = opt.votes.includes(activeMemberId);
+          const hasVoted = opt.votes.includes(currentUserId);
           if (opt.id === optionId) {
             return {
               ...opt,
               votes: hasVoted
-                ? opt.votes.filter((id) => id !== activeMemberId)
-                : [...opt.votes, activeMemberId],
+                ? opt.votes.filter((id) => id !== currentUserId)
+                : [...opt.votes, currentUserId],
             };
           } else {
             // single choice vote
             return {
               ...opt,
-              votes: opt.votes.filter((id) => id !== activeMemberId),
+              votes: opt.votes.filter((id) => id !== currentUserId),
             };
           }
         });
@@ -629,23 +650,24 @@ export default function App() {
   };
 
   const handleCreatePoll = (question: string, options: string[]) => {
+    const currentUserId = activeMemberId || activeMember.id;
     playSendChime(isMuted);
 
     const newPollMessage: Message = {
       id: `msg-${Date.now()}`,
       channelId: currentChannel.id,
-      senderId: activeMemberId,
+      senderId: currentUserId,
       content: `📊 New Family Vote: ${question}`,
       timestamp: new Date().toISOString(),
       reactions: {},
-      readBy: [activeMemberId],
+      readBy: [currentUserId],
       poll: {
         question,
-        createdBy: activeMemberId,
+        createdBy: currentUserId,
         options: options.map((opt, i) => ({
           id: `opt-${i}`,
           text: opt,
-          votes: i === 0 ? [activeMemberId] : [],
+          votes: i === 0 ? [currentUserId] : [],
         })),
       },
     };
@@ -680,6 +702,7 @@ export default function App() {
 
   // --- Milestones & Celebrations Handlers ---
   const handleAddMilestone = (newMilestone: Omit<MilestoneCelebration, 'id' | 'createdAt'>) => {
+    const currentUserId = activeMemberId || activeMember.id;
     const created: MilestoneCelebration = {
       ...newMilestone,
       id: `milestone-${Date.now()}`,
@@ -692,11 +715,11 @@ export default function App() {
     const announcementMsg: Message = {
       id: `msg-mile-${Date.now()}`,
       channelId: 'celebrations',
-      senderId: activeMemberId,
+      senderId: currentUserId,
       content: `🎉 **FAMILY CELEBRATION ANNOUNCED** 🎉\n\n**${created.title}** honoring **${created.honoreeName}**!\n📅 Date: ${created.date} ${created.time ? `at ${created.time}` : ''}\n📍 Location: ${created.location}\n\nJoin the Milestones & Celebrations hub to RSVP, choose preparation duties, and share your blessings!`,
       timestamp: 'Just now',
-      reactions: { '🎉': [activeMemberId], '❤️': [activeMemberId] },
-      readBy: [activeMemberId],
+      reactions: { '🎉': [currentUserId], '❤️': [currentUserId] },
+      readBy: [currentUserId],
     };
     setMessages((prev) => [...prev, announcementMsg]);
   };
@@ -736,15 +759,16 @@ export default function App() {
     status: 'attending' | 'maybe' | 'declined',
     guestsCount: number
   ) => {
+    const currentUserId = activeMemberId || activeMember.id;
     setMilestones((prev) =>
       prev.map((m) => {
         if (m.id !== milestoneId) return m;
-        const otherRsvps = m.rsvps.filter((r) => r.memberId !== activeMemberId);
+        const otherRsvps = m.rsvps.filter((r) => r.memberId !== currentUserId);
         return {
           ...m,
           rsvps: [
             ...otherRsvps,
-            { memberId: activeMemberId, memberName: activeMember.name, status, guestsCount },
+            { memberId: currentUserId, memberName: activeMember.name, status, guestsCount },
           ],
         };
       })
@@ -752,9 +776,10 @@ export default function App() {
   };
 
   const handleAddMilestoneBlessing = (milestoneId: string, message: string) => {
+    const currentUserId = activeMemberId || activeMember.id;
     const newBlessing = {
       id: `bless-${Date.now()}`,
-      memberId: activeMemberId,
+      memberId: currentUserId,
       memberName: activeMember.name,
       message,
       timestamp: new Date().toISOString(),
@@ -768,14 +793,15 @@ export default function App() {
   };
 
   const handleAnnounceMilestoneInChat = (text: string, channelId: string = 'celebrations') => {
+    const currentUserId = activeMemberId || activeMember.id;
     const msg: Message = {
       id: `msg-${Date.now()}`,
       channelId,
-      senderId: activeMemberId,
+      senderId: currentUserId,
       content: text,
       timestamp: 'Just now',
-      reactions: { '🎉': [activeMemberId] },
-      readBy: [activeMemberId],
+      reactions: { '🎉': [currentUserId] },
+      readBy: [currentUserId],
     };
     setMessages((prev) => [...prev, msg]);
     playSendChime(isMuted);
@@ -801,11 +827,39 @@ export default function App() {
     setSecurityLogs((prev) => [auditLog, ...prev]);
   };
 
-  const handleToggleOnlinePresence = (memberId: string) => {
+  const handleResetMemberPassword = (memberId: string, newPass: string) => {
     setMembers((prev) =>
-      prev.map((m) =>
-        m.id === memberId ? { ...m, isOnline: !m.isOnline } : m
-      )
+      prev.map((m) => (m.id === memberId ? { ...m, password: newPass } : m))
+    );
+    const target = members.find((m) => m.id === memberId);
+    const log: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'RESET_PASSWORD',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (Admin)`,
+      targetId: memberId,
+      targetName: target?.name,
+      details: `Head of Family reset temporary passcode for ${target?.name}.`,
+    };
+    setSecurityLogs((logs) => [log, ...logs]);
+    setLoginToastNotice(`Passcode for ${target?.name} reset successfully.`);
+    setTimeout(() => setLoginToastNotice(null), 4000);
+  };
+
+  const handleUpdateUserProfile = (data: { name?: string; avatarColor?: string; password?: string; isOnline?: boolean }) => {
+    if (!activeMemberId) return;
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id !== activeMemberId) return m;
+        return {
+          ...m,
+          ...(data.name ? { name: data.name } : {}),
+          ...(data.avatarColor ? { avatarColor: data.avatarColor } : {}),
+          ...(data.password !== undefined ? { password: data.password } : {}),
+          ...(data.isOnline !== undefined ? { isOnline: data.isOnline } : {}),
+        };
+      })
     );
   };
 
@@ -878,10 +932,11 @@ export default function App() {
 
   // --- Album Handlers ---
   const handleAddMemory = (memory: Omit<PhotoMemory, 'id' | 'likes'>) => {
+    const currentUserId = activeMemberId || activeMember.id;
     const newMem: PhotoMemory = {
       ...memory,
       id: `mem-${Date.now()}`,
-      likes: [activeMemberId],
+      likes: [currentUserId],
     };
     setMemories((prev) => [newMem, ...prev]);
 
@@ -896,16 +951,17 @@ export default function App() {
   };
 
   const handleToggleLikeMemory = (memoryId: string) => {
+    const currentUserId = activeMemberId || activeMember.id;
     playReactionPop(isMuted);
     setMemories((prev) =>
       prev.map((m) => {
         if (m.id !== memoryId) return m;
-        const hasLiked = m.likes.includes(activeMemberId);
+        const hasLiked = m.likes.includes(currentUserId);
         return {
           ...m,
           likes: hasLiked
-            ? m.likes.filter((id) => id !== activeMemberId)
-            : [...m.likes, activeMemberId],
+            ? m.likes.filter((id) => id !== currentUserId)
+            : [...m.likes, currentUserId],
         };
       })
     );
@@ -1438,11 +1494,13 @@ export default function App() {
                 }}
                 onOpenMemberLogin={() => setIsMemberLoginModalOpen(true)}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
-                sentEmailsCount={sentInviteEmails.length}
                 onOpenNoticeBoard={() => setIsNoticeBoardOpen(true)}
                 onToggleSidebarMobile={() => setIsMobileSidebarOpen(true)}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                searchResultsCount={searchQuery.trim() ? currentChannelMessages.length : undefined}
+                searchAcrossAllChannels={searchAcrossAllChannels}
+                onToggleSearchAllChannels={() => setSearchAcrossAllChannels(!searchAcrossAllChannels)}
                 isAdminLoggedIn={isAdminLoggedIn}
                 onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
                 onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
@@ -1597,6 +1655,57 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'admin_dashboard' && (
+          <AdminDashboard
+            adminMember={activeMember}
+            allMembers={members}
+            familyUnits={familyUnits}
+            messages={messages}
+            milestones={milestones}
+            memories={memories}
+            securityLogs={securityLogs}
+            adminCredentials={adminCredentials}
+            onUpdateAdminCredentials={(email, password) => {
+              setAdminCredentials((prev) => ({
+                ...prev,
+                email,
+                ...(password ? { password } : {}),
+              }));
+              const auditLog: SecurityAuditLog = {
+                id: `log-${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                action: 'ADMIN_CREDENTIALS_UPDATE',
+                performedById: activeMember.id,
+                performedByName: `${activeMember.name} (Admin)`,
+                targetId: activeMember.id,
+                targetName: activeMember.name,
+                details: `Head of Family updated admin credentials (email: ${email}).`,
+              };
+              setSecurityLogs((prev) => [auditLog, ...prev]);
+            }}
+            onOpenRegisterMember={() => {
+              setMembersModalTab('register');
+              setIsMembersModalOpen(true);
+            }}
+            onOpenSuperAdminModal={() => setIsSuperAdminModalOpen(true)}
+            onToggleChatAccess={handleToggleChatAccess}
+            onResetMemberPassword={handleResetMemberPassword}
+            onSwitchToUserView={() => setActiveTab('user_dashboard')}
+          />
+        )}
+
+        {activeTab === 'user_dashboard' && (
+          <UserDashboard
+            activeMember={activeMember}
+            messages={messages}
+            milestones={milestones}
+            memories={memories}
+            onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
+            onUpdateProfile={handleUpdateUserProfile}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
         {/* Mobile Fixed Bottom Navigation Bar */}
         <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 h-16 bg-white/95 backdrop-blur-md border-t border-slate-200 grid grid-cols-6 items-center px-1">
           <button
@@ -1620,23 +1729,23 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('media')}
-            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
-              activeTab === 'media' ? 'text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <FolderHeart className="w-4 h-4" />
-            <span className="text-[9px] mt-1">Media</span>
-          </button>
-
-          <button
             onClick={() => setActiveTab('album')}
             className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
               activeTab === 'album' ? 'text-slate-900 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <Camera className="w-4 h-4" />
-            <span className="text-[9px] mt-1">Moments</span>
+            <span className="text-[9px] mt-1">Album</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('media')}
+            className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
+              activeTab === 'media' ? 'text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <FolderHeart className="w-4 h-4" />
+            <span className="text-[9px] mt-1">Voice</span>
           </button>
 
           <button
@@ -1646,17 +1755,17 @@ export default function App() {
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span className="text-[9px] mt-1">Calendar</span>
+            <span className="text-[9px] mt-1">Dates</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('family')}
+            onClick={() => setActiveTab(activeMember.isAdmin ? 'admin_dashboard' : 'user_dashboard')}
             className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
-              activeTab === 'family' ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'
+              activeTab === 'admin_dashboard' || activeTab === 'user_dashboard' ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span className="text-[9px] mt-1">Family</span>
+            <span className="text-[9px] mt-1">{activeMember.isAdmin ? 'Admin' : 'Space'}</span>
           </button>
         </nav>
 
@@ -1758,10 +1867,12 @@ export default function App() {
         securityLogs={securityLogs}
       />
 
-      {/* Family Settings & Archive Export Modal */}
+      {/* Family Settings & Profile Management Modal */}
       <FamilySettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
+        activeMember={activeMember}
+        onUpdateMember={handleUpdateMember}
         familyName={familyName}
         onUpdateFamilyName={setFamilyName}
         isLivelyMode={isLivelyMode}
@@ -1772,16 +1883,32 @@ export default function App() {
         onOpenAdminLogin={() => setIsAdminLoginModalOpen(true)}
         onAdminLogout={() => setIsAdminLoggedIn(false)}
         adminCredentials={adminCredentials}
-        onUpdateAdminCredentials={setAdminCredentials}
+        onUpdateAdminCredentials={(creds) => {
+          setAdminCredentials(creds);
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.isAdmin ? { ...m, email: creds.email, password: creds.password } : m
+            )
+          );
+        }}
         members={members}
         channels={channels}
         messages={messages}
-        groceries={groceries}
-        chores={chores}
         events={events}
         notices={notices}
         checkInHistory={checkInHistory}
         onResetData={handleResetData}
+      />
+
+      {/* Super Admin Lineage Oversight Modal */}
+      <SuperAdminModal
+        isOpen={isSuperAdminModalOpen}
+        onClose={() => setIsSuperAdminModalOpen(false)}
+        members={members}
+        familyUnits={familyUnits}
+        securityLogs={securityLogs}
+        activeMember={activeMember}
+        onRevokeAdmin={handleRevokeAdmin}
       />
 
       {/* Delivered Email Preview & Credentials Modal */}

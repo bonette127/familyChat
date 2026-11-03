@@ -299,3 +299,12 @@ export interface DailyCheckInRecord {
   timestamp: string;
 }
 
+export interface PhotoMemory {
+  id: string;
+  url: string;
+  caption: string;
+  date: string;
+  authorId: string;
+  category: 'trips' | 'food' | 'pets' | 'milestones' | 'general';
+  likes: string[];
+}

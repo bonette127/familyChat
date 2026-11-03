@@ -33,6 +33,9 @@ interface ChatHeaderProps {
   onToggleSidebarMobile: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  searchResultsCount?: number;
+  searchAcrossAllChannels?: boolean;
+  onToggleSearchAllChannels?: () => void;
   isAdminLoggedIn?: boolean;
   onOpenAdminLogin?: () => void;
   onOpenDailyCheckIn?: () => void;
@@ -59,6 +62,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleSidebarMobile,
   searchQuery,
   onSearchChange,
+  searchResultsCount,
+  searchAcrossAllChannels = true,
+  onToggleSearchAllChannels,
   isAdminLoggedIn,
   onOpenAdminLogin,
   onOpenDailyCheckIn,
@@ -104,7 +110,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-500 truncate hidden sm:block">
-              {currentChannel.description || 'Private family conversation & daily connection'}
+              {searchQuery.trim()
+                ? `Showing matches for "${searchQuery}" ${searchAcrossAllChannels ? 'across all channels' : `in #${currentChannel.name}`}`
+                : currentChannel.description || 'Private family conversation & daily connection'}
             </p>
           </div>
         </div>
@@ -112,25 +120,32 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {/* Right Actions Zone */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
-          {/* Persistent Text Search Input */}
-          <div className="flex items-center bg-slate-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-900 focus-within:border-transparent rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 transition-all w-28 sm:w-44 md:w-56 shrink-0">
+          {/* Full-Text Content & Caption Search Input */}
+          <div className="flex items-center bg-slate-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 transition-all w-32 sm:w-56 md:w-72 shrink-0 shadow-2xs">
             <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
             <input
               type="text"
-              placeholder={`Search #${currentChannel.name}...`}
+              placeholder={searchAcrossAllChannels ? 'Search all rooms & captions...' : `Search #${currentChannel.name}...`}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="bg-transparent focus:outline-none text-slate-800 w-full text-xs placeholder:text-slate-400"
             />
             {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchChange('')}
-                className="text-slate-400 hover:text-slate-600 ml-1 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
-                title="Clear search"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-1 shrink-0 ml-1">
+                {searchResultsCount !== undefined && (
+                  <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px] font-bold">
+                    {searchResultsCount}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onSearchChange('')}
+                  className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              </div>
             )}
           </div>
 
