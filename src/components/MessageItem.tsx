@@ -630,22 +630,29 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           )}
         </div>
 
-        {/* Clean, Intuitive Heart / Like Pill Below Bubble */}
-        {message.reactions?.['❤️'] && message.reactions['❤️'].length > 0 && (
-          <div className={`flex mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-            <button
-              type="button"
-              onClick={() => onReact(message.id, '❤️')}
-              className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs transition-all border ${
-                message.reactions['❤️'].includes(activeMemberId)
-                  ? 'bg-rose-50 border-rose-200 text-rose-600 font-bold shadow-2xs'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-              title={`Liked by: ${message.reactions['❤️'].map((id) => getMember(id).name).join(', ')}`}
-            >
-              <Heart className={`w-3.5 h-3.5 ${message.reactions['❤️'].includes(activeMemberId) ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}`} />
-              <span className="text-[11px] font-mono">{message.reactions['❤️'].length}</span>
-            </button>
+        {/* Display Reactions ONLY when a user has explicitly added one */}
+        {message.reactions && Object.entries(message.reactions).some(([_, users]) => users.length > 0) && (
+          <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+            {Object.entries(message.reactions).map(([emoji, users]) => {
+              if (users.length === 0) return null;
+              const hasReacted = users.includes(activeMemberId);
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onReact(message.id, emoji)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all border ${
+                    hasReacted
+                      ? 'bg-slate-100 border-slate-300 text-slate-800 font-bold shadow-2xs'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={`Reacted by: ${users.map((id) => getMember(id).name).join(', ')}`}
+                >
+                  <span className="text-xs">{emoji}</span>
+                  <span className="text-[10px] font-mono">{users.length}</span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -655,20 +662,41 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             isMe ? 'right-[calc(100%+8px)]' : 'left-[calc(100%+8px)]'
           }`}
         >
-          {/* 1-Click Clean Like Button */}
-          <button
-            type="button"
-            onClick={() => onReact(message.id, '❤️')}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
-              message.reactions?.['❤️']?.includes(activeMemberId)
-                ? 'bg-rose-50 text-rose-600 font-bold'
-                : 'text-slate-600 hover:text-rose-600 hover:bg-slate-100'
-            }`}
-            title={message.reactions?.['❤️']?.includes(activeMemberId) ? 'Unlike' : 'Heart / Like message'}
-          >
-            <Heart className={`w-3.5 h-3.5 ${message.reactions?.['❤️']?.includes(activeMemberId) ? 'fill-rose-500 text-rose-500' : ''}`} />
-            <span>Like</span>
-          </button>
+          {/* Optional Reaction Picker Trigger (Self-initiated only) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowReactionMenu(!showReactionMenu)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title="Add a reaction"
+            >
+              <Smile className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Reaction picker popover if user wants to add one themselves */}
+            {showReactionMenu && (
+              <div
+                className={`absolute bottom-full mb-1 bg-white border border-slate-200 shadow-lg rounded-2xl p-1.5 flex items-center gap-1 z-30 animate-in fade-in zoom-in-95 duration-100 ${
+                  isMe ? 'right-0' : 'left-0'
+                }`}
+              >
+                {['👍', '❤️', '😊', '🎉', '🙏'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      onReact(message.id, emoji);
+                      setShowReactionMenu(false);
+                    }}
+                    className="p-1.5 hover:bg-slate-100 rounded-xl text-sm transition-transform hover:scale-120"
+                    title={`React with ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="w-px h-4 bg-slate-200 my-auto" />
 

@@ -67,8 +67,11 @@ export interface FamilyMember {
   generation?: string; // Generational branch (e.g., Generation I - Elders)
   joinedAt?: string;
   isLeader?: boolean; // Appointed Unit Leader role
+  isOrgAdmin?: boolean; // Organization / Unit Administrator
   familyUnitId?: string; // ID of the Family Unit they belong to
   familyUnitName?: string; // Name of the Family Unit
+  addedById?: string; // ID of the administrator who added this member
+  addedByName?: string; // Name of the administrator who added this member
   addedByLeaderId?: string; // Leader who added this member
   addedByLeaderName?: string;
   hasChatAccess: boolean; // Main member or Unit Leader must grant this to allow chat participation

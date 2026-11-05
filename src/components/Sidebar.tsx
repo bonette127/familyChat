@@ -23,15 +23,16 @@ import {
   LogIn,
   Settings,
   CircleDot,
-  Gift
+  Gift,
+  Building
 } from 'lucide-react';
 import { Channel, FamilyMember, Message, FamilyUnit } from '../types/family';
 
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard';
-  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -306,28 +307,76 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Main Tab Navigators */}
         <div className="p-3 border-b border-slate-100 space-y-1">
-          {/* Distinct Dashboard depending on Admin vs User */}
-          {activeMember.isAdmin ? (
+          {/* Distinct Dashboard depending on Main Admin vs Org Admin vs Regular User */}
+          {activeMember.isAdmin || activeMember.isSuperAdmin ? (
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  onSelectTab('admin_dashboard');
+                  onCloseMobile();
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                  activeTab === 'admin_dashboard'
+                    ? 'bg-slate-900 text-white shadow-xs border-slate-900'
+                    : 'bg-indigo-50/80 hover:bg-indigo-100/90 text-indigo-950 border-indigo-200/90'
+                }`}
+              >
+                <Shield className={`w-4 h-4 shrink-0 ${activeTab === 'admin_dashboard' ? 'text-emerald-400' : 'text-indigo-600'}`} />
+                <div className="text-left min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs truncate">Main Admin</span>
+                    <span className="text-[9px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full">
+                      System Head
+                    </span>
+                  </div>
+                  <span className="text-[10px] opacity-75 font-normal block truncate">Global system & credentials</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
+                  onSelectTab('org_admin_dashboard');
+                  onCloseMobile();
+                }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                  activeTab === 'org_admin_dashboard'
+                    ? 'bg-slate-900 text-white shadow-xs border-slate-900'
+                    : 'bg-teal-50/70 hover:bg-teal-100/80 text-teal-950 border-teal-200/80'
+                }`}
+              >
+                <Building className={`w-4 h-4 shrink-0 ${activeTab === 'org_admin_dashboard' ? 'text-emerald-400' : 'text-teal-600'}`} />
+                <div className="text-left min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs truncate">Org Admin</span>
+                    <span className="text-[9px] bg-teal-600 text-white font-bold px-1.5 py-0.2 rounded-full">
+                      Branch
+                    </span>
+                  </div>
+                  <span className="text-[10px] opacity-75 font-normal block truncate">Unit member additions & removals</span>
+                </div>
+              </button>
+            </div>
+          ) : activeMember.isOrgAdmin || activeMember.isLeader ? (
             <button
               onClick={() => {
-                onSelectTab('admin_dashboard');
+                onSelectTab('org_admin_dashboard');
                 onCloseMobile();
               }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
-                activeTab === 'admin_dashboard'
+                activeTab === 'org_admin_dashboard'
                   ? 'bg-slate-900 text-white shadow-xs border-slate-900'
-                  : 'bg-indigo-50/80 hover:bg-indigo-100/90 text-indigo-950 border-indigo-200/90'
+                  : 'bg-teal-50/80 hover:bg-teal-100/90 text-teal-950 border-teal-200/90'
               }`}
             >
-              <Shield className={`w-4 h-4 shrink-0 ${activeTab === 'admin_dashboard' ? 'text-emerald-400' : 'text-indigo-600'}`} />
+              <Building className={`w-4 h-4 shrink-0 ${activeTab === 'org_admin_dashboard' ? 'text-emerald-400' : 'text-teal-600'}`} />
               <div className="text-left min-w-0 flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs truncate">Admin Dashboard</span>
-                  <span className="text-[9px] bg-emerald-500 text-white font-bold px-1.5 py-0.2 rounded-full">
-                    Head
+                  <span className="font-bold text-xs truncate">Organization Admin</span>
+                  <span className="text-[9px] bg-teal-600 text-white font-bold px-1.5 py-0.2 rounded-full">
+                    Branch Head
                   </span>
                 </div>
-                <span className="text-[10px] opacity-75 font-normal block truncate">Lineage & system control</span>
+                <span className="text-[10px] opacity-75 font-normal block truncate">Add & remove unit members</span>
               </div>
             </button>
           ) : (
@@ -344,7 +393,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <Users className={`w-4 h-4 shrink-0 ${activeTab === 'user_dashboard' ? 'text-emerald-400' : 'text-emerald-600'}`} />
               <div className="text-left min-w-0 flex-1">
-                <span className="block font-bold text-xs truncate">My Family Dashboard</span>
+                <span className="block font-bold text-xs truncate">My Family Space</span>
                 <span className="text-[10px] opacity-75 font-normal block truncate">My contributions & milestones</span>
               </div>
             </button>

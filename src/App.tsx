@@ -76,15 +76,17 @@ import { FamilyUnitsModal } from './components/FamilyUnitsModal';
 import { FamilyAuthLanding } from './components/FamilyAuthLanding';
 import { SuperAdminModal } from './components/SuperAdminModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { OrgAdminDashboard } from './components/OrgAdminDashboard';
 import { UserDashboard } from './components/UserDashboard';
 
 import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
-const STORAGE_KEY = 'kinfolk_family_lineage_v4_pristine';
+const STORAGE_KEY = 'family_forum_governance_v5';
 
 // Automated purge of legacy chaotic data keys to ensure a fresh, pristine system
 try {
   const legacyStorageKeys = [
+    'kinfolk_family_lineage_v4_pristine',
     'kinfolk_family_hub_data_v1',
     'kinfolk_family_hub_data_v1_members',
     'kinfolk_family_hub_data_v1_messages',
@@ -108,9 +110,13 @@ export default function App() {
   const [familyName, setFamilyName] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_name');
-      return saved ? JSON.parse(saved) : 'The Kinfolk Family';
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed !== 'The Kinfolk Family' && parsed !== 'Kinfolk') return parsed;
+      }
+      return 'Family Forum';
     } catch {
-      return 'The Kinfolk Family';
+      return 'Family Forum';
     }
   });
 
@@ -126,7 +132,8 @@ export default function App() {
   const [activeMemberId, setActiveMemberId] = useState<string | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_active_member');
-      return saved ? JSON.parse(saved) : DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
+      const parsed = saved ? JSON.parse(saved) : null;
+      return parsed || DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
     } catch {
       return DEFAULT_ADMIN_CREDENTIALS.mainMemberId;
     }
@@ -163,7 +170,14 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'user_dashboard'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY + '_active_tab');
+      return (saved as any) || 'admin_dashboard';
+    } catch {
+      return 'admin_dashboard';
+    }
+  });
 
   const [milestones, setMilestones] = useState<MilestoneCelebration[]>(() => {
     try {
@@ -401,6 +415,10 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY + '_security_logs', JSON.stringify(securityLogs));
   }, [securityLogs]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY + '_active_tab', activeTab);
+  }, [activeTab]);
+
   const activeMember = members.find((m) => m.id === activeMemberId) || members[0];
   const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
 
@@ -530,7 +548,7 @@ export default function App() {
           senderId: randomReplier.id,
           content: replyContent,
           timestamp: new Date().toISOString(),
-          reactions: { '❤️': [senderId] },
+          reactions: {},
           readBy: [randomReplier.id],
         };
 
@@ -547,21 +565,6 @@ export default function App() {
           }),
           replyMsg,
         ]);
-
-        // Also add reaction to user's original message
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id === userMsg.id) {
-              const currentReactions = { ...m.reactions };
-              const heartList = currentReactions['❤️'] || [];
-              if (!heartList.includes(randomReplier.id)) {
-                currentReactions['❤️'] = [...heartList, randomReplier.id];
-              }
-              return { ...m, reactions: currentReactions };
-            }
-            return m;
-          })
-        );
       }, 1500);
     }, delayMs);
   };
@@ -1235,6 +1238,10 @@ export default function App() {
     const newMember: FamilyMember = {
       ...newMemberData,
       id: newMemberId,
+      addedById: activeMember.id,
+      addedByName: activeMember.name,
+      addedByLeaderId: activeMember.id,
+      addedByLeaderName: activeMember.name,
       accessGrantedAt: newMemberData.hasChatAccess ? new Date().toISOString() : undefined,
       accessGrantedBy: newMemberData.hasChatAccess ? activeMember.name : undefined,
     };
@@ -1312,7 +1319,7 @@ export default function App() {
       try {
         localStorage.clear();
       } catch {}
-      setFamilyName('The Kinfolk Family');
+      setFamilyName('Family Forum');
       setMembers(INITIAL_MEMBERS);
       setFamilyUnits(INITIAL_FAMILY_UNITS);
       setSecurityLogs(INITIAL_SECURITY_LOGS);
@@ -1690,6 +1697,25 @@ export default function App() {
             onOpenSuperAdminModal={() => setIsSuperAdminModalOpen(true)}
             onToggleChatAccess={handleToggleChatAccess}
             onResetMemberPassword={handleResetMemberPassword}
+            onRemoveMember={handleDeleteMember}
+            onSwitchToUserView={() => setActiveTab('user_dashboard')}
+            onSwitchToOrgAdminView={() => setActiveTab('org_admin_dashboard')}
+          />
+        )}
+
+        {activeTab === 'org_admin_dashboard' && (
+          <OrgAdminDashboard
+            orgAdminMember={activeMember}
+            allMembers={members}
+            familyUnits={familyUnits}
+            messages={messages}
+            onOpenRegisterMember={() => {
+              setMembersModalTab('register');
+              setIsMembersModalOpen(true);
+            }}
+            onRemoveMember={handleDeleteMember}
+            onToggleChatAccess={handleToggleChatAccess}
+            onResetMemberPassword={handleResetMemberPassword}
             onSwitchToUserView={() => setActiveTab('user_dashboard')}
           />
         )}
@@ -1759,13 +1785,23 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab(activeMember.isAdmin ? 'admin_dashboard' : 'user_dashboard')}
+            onClick={() => {
+              if (activeMember.isAdmin || activeMember.isSuperAdmin) {
+                setActiveTab('admin_dashboard');
+              } else if (activeMember.isOrgAdmin || activeMember.isLeader) {
+                setActiveTab('org_admin_dashboard');
+              } else {
+                setActiveTab('user_dashboard');
+              }
+            }}
             className={`flex flex-col items-center justify-center h-full min-h-[44px] transition-colors ${
-              activeTab === 'admin_dashboard' || activeTab === 'user_dashboard' ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'
+              activeTab === 'admin_dashboard' || activeTab === 'org_admin_dashboard' || activeTab === 'user_dashboard' ? 'text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span className="text-[9px] mt-1">{activeMember.isAdmin ? 'Admin' : 'Space'}</span>
+            <span className="text-[9px] mt-1">
+              {activeMember.isAdmin || activeMember.isSuperAdmin ? 'Admin' : activeMember.isOrgAdmin || activeMember.isLeader ? 'Org Admin' : 'Space'}
+            </span>
           </button>
         </nav>
 
