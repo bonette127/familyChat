@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Camera, Heart, Plus, Calendar, User, X, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { Camera, Heart, Plus, Calendar, User, X, ZoomIn, Image as ImageIcon, Play, Sparkles } from 'lucide-react';
 import { FamilyMember } from '../types/family';
+import { FamilyPhotoSlideshow } from './FamilyPhotoSlideshow';
 
 export interface PhotoMemory {
   id: string;
@@ -30,6 +31,7 @@ export const FamilyAlbumTab: React.FC<FamilyAlbumTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoMemory | null>(null);
   const [isAddingModal, setIsAddingModal] = useState(false);
+  const [isSlideshowOpen, setIsSlideshowOpen] = useState(false);
 
   // New Memory Form
   const [caption, setCaption] = useState('');
@@ -96,13 +98,26 @@ export const FamilyAlbumTab: React.FC<FamilyAlbumTabProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddingModal(true)}
-          className="self-start sm:self-auto px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Family Photo</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {memories.length > 0 && (
+            <button
+              onClick={() => setIsSlideshowOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all cursor-pointer hover:shadow-md"
+              title="Start auto-cycling photo slideshow"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>Photo Slideshow</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsAddingModal(true)}
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Family Photo</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -370,6 +385,16 @@ export const FamilyAlbumTab: React.FC<FamilyAlbumTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Photo Slideshow Modal */}
+      <FamilyPhotoSlideshow
+        isOpen={isSlideshowOpen}
+        onClose={() => setIsSlideshowOpen(false)}
+        memories={filteredMemories.length > 0 ? filteredMemories : memories}
+        members={members}
+        activeMemberId={activeMemberId}
+        onToggleLike={onToggleLike}
+      />
     </div>
   );
 };

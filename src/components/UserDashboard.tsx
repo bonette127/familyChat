@@ -17,7 +17,11 @@ import {
   Gift, 
   ExternalLink,
   ChevronRight,
-  ShieldAlert
+  ShieldCheck,
+  Play,
+  Check,
+  Building,
+  Crown
 } from 'lucide-react';
 import { FamilyMember, Message, MilestoneCelebration, PhotoMemory } from '../types/family';
 
@@ -29,6 +33,9 @@ interface UserDashboardProps {
   onOpenDailyCheckIn: () => void;
   onUpdateProfile: (data: { name?: string; avatarColor?: string; password?: string; isOnline?: boolean }) => void;
   onNavigateToTab: (tab: 'chat' | 'celebrations' | 'album' | 'calendar') => void;
+  onSwitchToFamilyAdmin?: () => void;
+  onSwitchToOrgAdmin?: () => void;
+  onSwitchToSuperAdmin?: () => void;
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({
@@ -39,6 +46,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onOpenDailyCheckIn,
   onUpdateProfile,
   onNavigateToTab,
+  onSwitchToFamilyAdmin,
+  onSwitchToOrgAdmin,
+  onSwitchToSuperAdmin,
 }) => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [displayName, setDisplayName] = useState(activeMember.name);
@@ -69,12 +79,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   const avatarColorOptions = [
     { label: 'Emerald Green', value: 'bg-emerald-600' },
-    { label: 'Indigo Blue', value: 'bg-indigo-600' },
     { label: 'Rose Pink', value: 'bg-rose-500' },
-    { label: 'Amber Orange', value: 'bg-amber-600' },
+    { label: 'Indigo Blue', value: 'bg-indigo-600' },
     { label: 'Teal Cyan', value: 'bg-teal-600' },
+    { label: 'Amber Orange', value: 'bg-amber-600' },
     { label: 'Purple Violet', value: 'bg-purple-600' },
-    { label: 'Slate Gray', value: 'bg-slate-700' },
   ];
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -90,7 +99,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-50 overflow-y-auto">
+    <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-50 overflow-y-auto font-sans">
+      
       {/* Top Banner: Warm Personal Space */}
       <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 text-white p-6 sm:p-8 shrink-0 shadow-md">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -103,7 +113,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-semibold backdrop-blur-xs">
                   {activeMember.familyRole || activeMember.role}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 text-xs flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-semibold">
+                  🏡 {activeMember.familyUnitName || 'Central Branch'}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 text-xs flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-full ${activeMember.isOnline ? 'bg-emerald-400' : 'bg-slate-400'}`} />
                   {activeMember.isOnline ? 'Active Online' : 'Appearing Offline'}
                 </span>
@@ -112,21 +125,42 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 {activeMember.name}'s Family Space
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 mt-0.5">
-                Your personal memories, celebrations, check-in milestones, and account settings.
+                Your personal memories, celebrations, check-in status, and contributions to our family forum.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-end">
+          {/* Perspective Switchers for Testing */}
+          <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-auto justify-end flex-wrap">
+            {onSwitchToFamilyAdmin && (
+              <button
+                onClick={onSwitchToFamilyAdmin}
+                className="px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 border border-emerald-400/30 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Switch to Family Admin (Mary) Dashboard"
+              >
+                <Crown className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Family Admin (Mary)</span>
+              </button>
+            )}
+            {onSwitchToOrgAdmin && (
+              <button
+                onClick={onSwitchToOrgAdmin}
+                className="px-3.5 py-2 bg-teal-500/20 hover:bg-teal-500/30 text-teal-100 border border-teal-400/30 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Switch to Branch Admin (David) Dashboard"
+              >
+                <Building className="w-3.5 h-3.5 text-teal-300" />
+                <span>Branch Admin (David)</span>
+              </button>
+            )}
             <button
               onClick={onOpenDailyCheckIn}
-              className="px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+              className="px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
             >
               <span>{activeMember.moodEmoji || '☀️'} Check In Today</span>
             </button>
             <button
               onClick={() => setIsEditingProfile(!isEditingProfile)}
-              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>{isEditingProfile ? 'Close Edit' : 'Edit Profile'}</span>
@@ -144,6 +178,106 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             <span>Your profile details and password have been saved successfully!</span>
           </div>
         )}
+
+        {/* DEMONSTRATION SECTION: How Individual Users Operate in the System */}
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 font-display">
+                  Your Role & How You Operate in Family Forum
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Assigned Role: <strong className="text-emerald-700">{activeMember.role}</strong> ({activeMember.familyRole || 'Family Member'})
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
+              ● Permissions Active
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            {/* Operation 1: Chatting */}
+            <div 
+              onClick={() => onNavigateToTab('chat')}
+              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-emerald-50/50 border border-slate-200/80 hover:border-emerald-300 transition-all cursor-pointer group space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-emerald-700">
+                  <MessageCircle className="w-4 h-4 text-emerald-600" />
+                  <span>1. Living Room Chat & Direct Messaging</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Post warm updates, reply directly to other family members, record voice notes with automated transcription, and participate in dinner/activity polls.
+              </p>
+            </div>
+
+            {/* Operation 2: Photo Slideshow */}
+            <div 
+              onClick={() => onNavigateToTab('album')}
+              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-300 transition-all cursor-pointer group space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-indigo-700">
+                  <Play className="w-4 h-4 text-indigo-600" />
+                  <span>2. Family Scrapbook & Photo Slideshow</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Browse generational memories, add new keepsakes, and launch the smooth automated Photo Slideshow with auto-play and fullscreen mode.
+              </p>
+            </div>
+
+            {/* Operation 3: Milestones & Celebrations */}
+            <div 
+              onClick={() => onNavigateToTab('celebrations')}
+              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-rose-50/50 border border-slate-200/80 hover:border-rose-300 transition-all cursor-pointer group space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-rose-700">
+                  <Sparkles className="w-4 h-4 text-rose-500" />
+                  <span>3. Milestones & Celebrations</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                RSVP to Sophia & Daniel's Wedding, choose rehearsal/floral tasks, and share heartfelt blessings with the honorees.
+              </p>
+            </div>
+
+            {/* Operation 4: Daily Check-in */}
+            <div 
+              onClick={onOpenDailyCheckIn}
+              className="p-3.5 rounded-2xl bg-slate-50 hover:bg-amber-50/50 border border-slate-200/80 hover:border-amber-300 transition-all cursor-pointer group space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-amber-800">
+                  <Smile className="w-4 h-4 text-amber-500" />
+                  <span>4. Daily Check-in & Presence</span>
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Broadcast your daily mood (😊, ☕, 🏃), short status ("At Work", "Relaxing"), and let loved ones know you are safe and sound.
+              </p>
+            </div>
+          </div>
+
+          {/* Privacy Note */}
+          <div className="p-3 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-[11px] text-emerald-900 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>
+              <strong>Administrative Protection:</strong> System management (member additions, role changes, credentials) is securely restricted to Family Admin Mary. Your experience remains completely intuitive and clutter-free.
+            </span>
+          </div>
+        </div>
 
         {/* Edit Profile Form Card */}
         {isEditingProfile && (
@@ -177,7 +311,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                    Your Password
+                    Your Personal Passcode
                   </label>
                   <input
                     type="text"
@@ -199,7 +333,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       key={opt.value}
                       type="button"
                       onClick={() => setAvatarColor(opt.value)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition-all cursor-pointer ${
                         avatarColor === opt.value
                           ? 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold shadow-2xs'
                           : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
@@ -222,7 +356,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Save Profile</span>
@@ -283,7 +417,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         </div>
 
-        {/* Daily Status & Mood Streak Card */}
+        {/* Daily Status & Mood Card */}
         <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl shrink-0">
@@ -299,7 +433,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 </span>
               </div>
               <h3 className="text-sm font-bold text-slate-900 font-display mt-0.5">
-                "{activeMember.shortStatus || 'Relaxing at home'}"
+                "{activeMember.shortStatus || 'Relaxing with family'}"
               </h3>
               {activeMember.checkInNote && (
                 <p className="text-xs text-slate-500 italic mt-0.5">
@@ -311,9 +445,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
           <button
             onClick={onOpenDailyCheckIn}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors"
+            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer"
           >
-            Update Status
+            Update Check-in
           </button>
         </div>
 
@@ -326,77 +460,40 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 <span>My Celebrations & RSVPs</span>
               </h2>
               <p className="text-xs text-slate-400">
-                Events you are attending or helping organize
+                Milestones you are attending or helping coordinate
               </p>
             </div>
             <button
               onClick={() => onNavigateToTab('celebrations')}
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
             >
-              <span>View All</span>
+              <span>View Celebrations Hub</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {myRsvps.length === 0 ? (
-            <div className="py-6 text-center text-xs text-slate-400 space-y-2">
-              <p>You haven't RSVP'd to any milestone celebrations yet.</p>
-              <button
-                onClick={() => onNavigateToTab('celebrations')}
-                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-xl text-xs transition-colors"
-              >
-                Explore Family Celebrations
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {myRsvps.map((mile) => {
-                const myRsvpStatus = mile.rsvps.find((r) => r.memberId === activeMember.id)?.status;
-                return (
-                  <div
-                    key={mile.id}
-                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div>
-                      <h4 className="font-bold text-slate-800 text-xs">{mile.title}</h4>
-                      <p className="text-[11px] text-slate-400">
-                        📅 {mile.date} • 📍 {mile.location}
-                      </p>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-[10px] shrink-0">
-                      RSVP: {myRsvpStatus === 'attending' ? 'Attending ✓' : myRsvpStatus}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* My Assigned Tasks (if any) */}
-        {myAssignedTasks.length > 0 && (
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-2xs space-y-3">
-            <h2 className="text-sm font-bold text-slate-900 font-display flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>My Celebration Duties</span>
-            </h2>
-            <div className="space-y-2">
-              {myAssignedTasks.map((t) => (
-                <div key={t.id} className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-xs">
+          <div className="space-y-2.5">
+            {milestones.map((mile) => {
+              const myRsvpStatus = mile.rsvps.find((r) => r.memberId === activeMember.id)?.status;
+              return (
+                <div
+                  key={mile.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-3 text-xs"
+                >
                   <div>
-                    <p className="font-semibold text-slate-800">{t.title}</p>
-                    <p className="text-[10px] text-slate-500">For {t.milestoneTitle} ({t.milestoneDate})</p>
+                    <h4 className="font-bold text-slate-800 text-xs">{mile.title}</h4>
+                    <p className="text-[11px] text-slate-400">
+                      📅 {mile.date} • 📍 {mile.location}
+                    </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    t.completed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200 text-amber-900'
-                  }`}>
-                    {t.completed ? 'Done ✓' : 'In Progress'}
+                  <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-[10px] shrink-0">
+                    RSVP: {myRsvpStatus ? `Attending ✓` : 'Open'}
                   </span>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
       </div>
     </div>

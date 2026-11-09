@@ -78,6 +78,7 @@ import { SuperAdminModal } from './components/SuperAdminModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { OrgAdminDashboard } from './components/OrgAdminDashboard';
 import { UserDashboard } from './components/UserDashboard';
+import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 
 import { playSendChime, playReceiveChime, playReactionPop, playSuccessCelebration } from './utils/audio';
 
@@ -170,7 +171,7 @@ export default function App() {
   });
 
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard'>(() => {
+  const [activeTab, setActiveTab] = useState<'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard' | 'super_admin_dashboard'>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY + '_active_tab');
       return (saved as any) || 'admin_dashboard';
@@ -850,6 +851,109 @@ export default function App() {
     setTimeout(() => setLoginToastNotice(null), 4000);
   };
 
+  const handleDeleteOrganization = (unitId: string, reason: string) => {
+    const targetUnit = familyUnits.find((u) => u.id === unitId);
+    if (!targetUnit) return;
+
+    // Purge the unit
+    setFamilyUnits((prev) => prev.filter((u) => u.id !== unitId));
+
+    // Purge associated members belonging to this unit, while strictly protecting root super admin Bonette and verified head Mary
+    setMembers((prev) =>
+      prev.filter((m) => {
+        if (m.isSuperAdmin || m.id === 'super-admin-bonette' || m.id === 'admin-mary') return true;
+        return m.familyUnitId !== unitId;
+      })
+    );
+
+    // Record strict security audit log
+    const auditLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'DELETE_ORGANIZATION',
+      performedById: 'super-admin-bonette',
+      performedByName: 'Bonette (Platform Owner - IBYO YAKOZE)',
+      targetId: unitId,
+      targetName: targetUnit.name,
+      details: `Platform Owner Bonette deleted entire organization "${targetUnit.name}" and purged all associated unit members to eliminate system chaos. Formal Reason: ${reason}`,
+    };
+    setSecurityLogs((prev) => [auditLog, ...prev]);
+
+    setLoginToastNotice(`Organization "${targetUnit.name}" and its members permanently removed by Super Admin Bonette.`);
+    setTimeout(() => setLoginToastNotice(null), 5000);
+  };
+
+  const handleRegisterOrganization = (data: {
+    name: string;
+    description: string;
+    leaderName: string;
+    leaderEmail: string;
+  }) => {
+    const newUnitId = `unit-${Date.now()}`;
+    const newLeaderId = `leader-${Date.now()}`;
+
+    const newLeader: FamilyMember = {
+      id: newLeaderId,
+      name: data.leaderName,
+      role: 'Branch / Organization Admin',
+      familyRole: 'Branch Admin',
+      avatarColor: 'bg-teal-600',
+      status: `Admin of ${data.name}`,
+      statusEmoji: '🏢',
+      moodEmoji: '🌟',
+      shortStatus: 'Online',
+      lastCheckInTime: 'Just now',
+      lastActiveTime: 'Active now',
+      checkInNote: `Registered as Branch Admin for ${data.name}`,
+      relationship: 'Branch Administrator',
+      email: data.leaderEmail,
+      password: 'admin',
+      isOnline: true,
+      isAdmin: false,
+      isOrgAdmin: true,
+      isLeader: true,
+      familyUnitId: newUnitId,
+      familyUnitName: data.name,
+      hasChatAccess: true,
+      accessGrantedAt: new Date().toISOString(),
+      accessGrantedBy: 'Bonette (Super Admin)',
+      joinedAt: new Date().toISOString(),
+      addedById: 'super-admin-bonette',
+      addedByName: 'Bonette (Super Admin)',
+    };
+
+    const newUnit: FamilyUnit = {
+      id: newUnitId,
+      name: data.name,
+      description: data.description || `Branch organization under ${data.leaderName}`,
+      leaderId: newLeaderId,
+      leaderName: data.leaderName,
+      leaderEmail: data.leaderEmail,
+      appointedAt: new Date().toISOString(),
+      appointedBy: 'Bonette (Super Admin)',
+      createdAt: new Date().toISOString(),
+      color: 'bg-teal-500',
+    };
+
+    const auditLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'REGISTER_ORGANIZATION',
+      performedById: 'super-admin-bonette',
+      performedByName: 'Bonette (Platform Owner - IBYO YAKOZE)',
+      targetId: newUnitId,
+      targetName: data.name,
+      details: `New organization "${data.name}" registered with appointed admin ${data.leaderName} (${data.leaderEmail}).`,
+    };
+
+    setMembers((prev) => [...prev, newLeader]);
+    setFamilyUnits((prev) => [...prev, newUnit]);
+    setSecurityLogs((prev) => [auditLog, ...prev]);
+
+    setLoginToastNotice(`Organization "${data.name}" registered successfully with leader ${data.leaderName}.`);
+    setTimeout(() => setLoginToastNotice(null), 5000);
+  };
+
   const handleUpdateUserProfile = (data: { name?: string; avatarColor?: string; password?: string; isOnline?: boolean }) => {
     if (!activeMemberId) return;
     setMembers((prev) =>
@@ -1054,6 +1158,48 @@ export default function App() {
     setMembers((prev) =>
       prev.map((m) => (m.id === updated.id ? updated : m))
     );
+  };
+
+  const handleUpdateMemberRole = (
+    memberId: string,
+    roleData: {
+      role: string;
+      familyRole?: string;
+      familyUnitId?: string;
+      familyUnitName?: string;
+      hasChatAccess?: boolean;
+      isLeader?: boolean;
+      isOrgAdmin?: boolean;
+    }
+  ) => {
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id !== memberId) return m;
+        return {
+          ...m,
+          role: roleData.role,
+          ...(roleData.familyRole !== undefined ? { familyRole: roleData.familyRole } : {}),
+          ...(roleData.familyUnitId !== undefined ? { familyUnitId: roleData.familyUnitId } : {}),
+          ...(roleData.familyUnitName !== undefined ? { familyUnitName: roleData.familyUnitName } : {}),
+          ...(roleData.hasChatAccess !== undefined ? { hasChatAccess: roleData.hasChatAccess } : {}),
+          ...(roleData.isLeader !== undefined ? { isLeader: roleData.isLeader } : {}),
+          ...(roleData.isOrgAdmin !== undefined ? { isOrgAdmin: roleData.isOrgAdmin } : {}),
+        };
+      })
+    );
+
+    const targetMember = members.find((m) => m.id === memberId);
+    const auditLog: SecurityAuditLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      action: 'UPDATE_MEMBER_ROLE',
+      performedById: activeMember.id,
+      performedByName: `${activeMember.name} (Family Head)`,
+      targetId: memberId,
+      targetName: targetMember?.name,
+      details: `Reassigned system role for ${targetMember?.name} to "${roleData.role}" in ${roleData.familyUnitName || targetMember?.familyUnitName || 'household unit'}.`,
+    };
+    setSecurityLogs((prev) => [auditLog, ...prev]);
   };
 
   const handleToggleOnlinePresence = (memberId: string) => {
@@ -1352,17 +1498,34 @@ export default function App() {
           if (m?.isAdmin) setIsAdminLoggedIn(true);
         }}
         onLoginWithCredentials={(email, pass) => {
+          const lowerEmail = email.toLowerCase().trim();
+
+          // Super Admin Platform Owner check: "IBYO YAKOZE" or "Bonette"
+          if (
+            (lowerEmail === 'ibyo yakoze' || lowerEmail === 'bonette' || lowerEmail === 'super-admin') &&
+            pass === 'admin'
+          ) {
+            setActiveMemberId('super-admin-bonette');
+            setIsAdminLoggedIn(true);
+            setActiveTab('super_admin_dashboard');
+            return true;
+          }
+
           const m = members.find(
             (x) =>
-              (x.email?.toLowerCase() === email.toLowerCase() || x.name.toLowerCase() === email.toLowerCase()) &&
+              (x.email?.toLowerCase() === lowerEmail || x.name.toLowerCase() === lowerEmail) &&
               x.password === pass
           );
           if (m) {
             setActiveMemberId(m.id);
-            if (m.isAdmin) setIsAdminLoggedIn(true);
+            if (m.isAdmin || m.isSuperAdmin) setIsAdminLoggedIn(true);
+            if (m.isSuperAdmin) setActiveTab('super_admin_dashboard');
+            else if (m.isAdmin) setActiveTab('admin_dashboard');
+            else if (m.isOrgAdmin || m.isLeader) setActiveTab('org_admin_dashboard');
+            else setActiveTab('user_dashboard');
             return true;
           }
-          if (email.toLowerCase() === adminCredentials.email.toLowerCase() && pass === adminCredentials.password) {
+          if (lowerEmail === adminCredentials.email.toLowerCase() && pass === adminCredentials.password) {
             setActiveMemberId(adminCredentials.mainMemberId);
             setIsAdminLoggedIn(true);
             return true;
@@ -1479,6 +1642,91 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full min-w-0 bg-slate-50 relative pb-16 md:pb-0">
+        
+        {/* Quick Universal Role Switcher Bar */}
+        <div className="bg-slate-900 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between text-xs text-slate-300 z-30 shrink-0 overflow-x-auto gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Role Mode:
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-white font-semibold text-[11px] border border-slate-700">
+              {activeTab === 'super_admin_dashboard' ? '🌐 Superadmin (Platform Overseer)' : `${activeMember.name} (${activeMember.role})`}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                setActiveMemberId('admin-mary');
+                setActiveTab('admin_dashboard');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeTab === 'admin_dashboard' && activeMemberId === 'admin-mary'
+                  ? 'bg-emerald-500 text-white shadow-xs'
+                  : 'bg-white/10 text-emerald-200 hover:bg-white/20'
+              }`}
+              title="Switch to Family Admin Mary"
+            >
+              👑 Family Admin (Mary)
+            </button>
+            <button
+              onClick={() => {
+                setActiveMemberId('david-unit-lead');
+                setActiveTab('org_admin_dashboard');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeTab === 'org_admin_dashboard' && activeMemberId === 'david-unit-lead'
+                  ? 'bg-teal-500 text-white shadow-xs'
+                  : 'bg-white/10 text-teal-200 hover:bg-white/20'
+              }`}
+              title="Switch to Branch Admin David"
+            >
+              🏢 Branch Admin (David)
+            </button>
+            <button
+              onClick={() => {
+                setActiveMemberId('sophia-daughter');
+                setActiveTab('user_dashboard');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeTab === 'user_dashboard' && activeMemberId === 'sophia-daughter'
+                  ? 'bg-rose-500 text-white shadow-xs'
+                  : 'bg-white/10 text-rose-200 hover:bg-white/20'
+              }`}
+              title="Switch to User Sophia"
+            >
+              👤 User (Sophia)
+            </button>
+            <button
+              onClick={() => {
+                setActiveMemberId('liam-son');
+                setActiveTab('user_dashboard');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeTab === 'user_dashboard' && activeMemberId === 'liam-son'
+                  ? 'bg-indigo-500 text-white shadow-xs'
+                  : 'bg-white/10 text-indigo-200 hover:bg-white/20'
+              }`}
+              title="Switch to Youth Member Liam"
+            >
+              👶 Youth (Liam)
+            </button>
+            <button
+              onClick={() => {
+                setActiveMemberId('super-admin-bonette');
+                setActiveTab('super_admin_dashboard');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                activeTab === 'super_admin_dashboard' && activeMemberId === 'super-admin-bonette'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white/10 text-indigo-200 hover:bg-white/20'
+              }`}
+              title="Switch to Super Admin Platform Owner (Bonette / IBYO YAKOZE)"
+            >
+              👑 Super Admin (Bonette / IBYO YAKOZE)
+            </button>
+          </div>
+        </div>
         
         {/* Render Tab Content */}
         {activeTab === 'chat' && (
@@ -1698,8 +1946,16 @@ export default function App() {
             onToggleChatAccess={handleToggleChatAccess}
             onResetMemberPassword={handleResetMemberPassword}
             onRemoveMember={handleDeleteMember}
-            onSwitchToUserView={() => setActiveTab('user_dashboard')}
-            onSwitchToOrgAdminView={() => setActiveTab('org_admin_dashboard')}
+            onUpdateMemberRole={handleUpdateMemberRole}
+            onSwitchToUserView={() => {
+              setActiveMemberId('sophia-daughter');
+              setActiveTab('user_dashboard');
+            }}
+            onSwitchToOrgAdminView={() => {
+              setActiveMemberId('david-unit-lead');
+              setActiveTab('org_admin_dashboard');
+            }}
+            onSwitchToSuperAdminView={() => setActiveTab('super_admin_dashboard')}
           />
         )}
 
@@ -1716,7 +1972,10 @@ export default function App() {
             onRemoveMember={handleDeleteMember}
             onToggleChatAccess={handleToggleChatAccess}
             onResetMemberPassword={handleResetMemberPassword}
-            onSwitchToUserView={() => setActiveTab('user_dashboard')}
+            onSwitchToUserView={() => {
+              setActiveMemberId('sophia-daughter');
+              setActiveTab('user_dashboard');
+            }}
           />
         )}
 
@@ -1729,6 +1988,39 @@ export default function App() {
             onOpenDailyCheckIn={() => setIsDailyCheckInOpen(true)}
             onUpdateProfile={handleUpdateUserProfile}
             onNavigateToTab={(tab) => setActiveTab(tab)}
+            onSwitchToFamilyAdmin={() => {
+              setActiveMemberId('admin-mary');
+              setActiveTab('admin_dashboard');
+            }}
+            onSwitchToOrgAdmin={() => {
+              setActiveMemberId('david-unit-lead');
+              setActiveTab('org_admin_dashboard');
+            }}
+            onSwitchToSuperAdmin={() => setActiveTab('super_admin_dashboard')}
+          />
+        )}
+
+        {activeTab === 'super_admin_dashboard' && (
+          <SuperAdminDashboard
+            members={members}
+            familyUnits={familyUnits}
+            securityLogs={securityLogs}
+            onRevokeAdmin={handleRevokeAdmin}
+            onResetMemberPassword={handleResetMemberPassword}
+            onDeleteOrganization={handleDeleteOrganization}
+            onRegisterOrganization={handleRegisterOrganization}
+            onSwitchToFamilyAdmin={() => {
+              setActiveMemberId('admin-mary');
+              setActiveTab('admin_dashboard');
+            }}
+            onSwitchToOrgAdmin={() => {
+              setActiveMemberId('david-unit-lead');
+              setActiveTab('org_admin_dashboard');
+            }}
+            onSwitchToUserView={() => {
+              setActiveMemberId('sophia-daughter');
+              setActiveTab('user_dashboard');
+            }}
           />
         )}
 

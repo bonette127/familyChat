@@ -27,7 +27,10 @@ export interface SecurityAuditLog {
     | 'SUPER_ADMIN_REVOKE_ADMIN'
     | 'REGISTER_FAMILY_HEAD'
     | 'UPDATE_PROFILE'
-    | 'ADMIN_CREDENTIALS_UPDATE';
+    | 'ADMIN_CREDENTIALS_UPDATE'
+    | 'UPDATE_MEMBER_ROLE'
+    | 'DELETE_ORGANIZATION'
+    | 'REGISTER_ORGANIZATION';
   performedById: string;
   performedByName: string;
   targetId?: string;

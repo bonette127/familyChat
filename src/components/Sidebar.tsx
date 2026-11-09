@@ -31,8 +31,8 @@ import { Channel, FamilyMember, Message, FamilyUnit } from '../types/family';
 interface SidebarProps {
   familyName: string;
   onUpdateFamilyName: (name: string) => void;
-  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard';
-  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard') => void;
+  activeTab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard' | 'super_admin_dashboard';
+  onSelectTab: (tab: 'chat' | 'album' | 'media' | 'celebrations' | 'calendar' | 'family' | 'admin_dashboard' | 'org_admin_dashboard' | 'user_dashboard' | 'super_admin_dashboard') => void;
   channels: Channel[];
   activeChannelId: string;
   onSelectChannel: (channelId: string) => void;
@@ -307,97 +307,104 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Main Tab Navigators */}
         <div className="p-3 border-b border-slate-100 space-y-1">
-          {/* Distinct Dashboard depending on Main Admin vs Org Admin vs Regular User */}
-          {activeMember.isAdmin || activeMember.isSuperAdmin ? (
-            <div className="space-y-1">
-              <button
-                onClick={() => {
-                  onSelectTab('admin_dashboard');
-                  onCloseMobile();
-                }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
-                  activeTab === 'admin_dashboard'
-                    ? 'bg-slate-900 text-white shadow-xs border-slate-900'
-                    : 'bg-indigo-50/80 hover:bg-indigo-100/90 text-indigo-950 border-indigo-200/90'
-                }`}
-              >
-                <Shield className={`w-4 h-4 shrink-0 ${activeTab === 'admin_dashboard' ? 'text-emerald-400' : 'text-indigo-600'}`} />
-                <div className="text-left min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs truncate">Main Admin</span>
-                    <span className="text-[9px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full">
-                      System Head
-                    </span>
-                  </div>
-                  <span className="text-[10px] opacity-75 font-normal block truncate">Global system & credentials</span>
+          {/* Distinct Dashboards Without Conflation */}
+          <div className="space-y-1">
+            {/* Family Admin Dashboard (Mary) */}
+            <button
+              onClick={() => {
+                onSelectTab('admin_dashboard');
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                activeTab === 'admin_dashboard'
+                  ? 'bg-slate-900 text-white shadow-xs border-slate-900'
+                  : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border-emerald-200/90'
+              }`}
+            >
+              <Crown className={`w-4 h-4 shrink-0 ${activeTab === 'admin_dashboard' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <div className="text-left min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs truncate">Family Admin (Mary)</span>
+                  <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.2 rounded-full">
+                    Roles
+                  </span>
                 </div>
-              </button>
+                <span className="text-[10px] opacity-75 font-normal block truncate">Manage members & assigned roles</span>
+              </div>
+            </button>
 
-              <button
-                onClick={() => {
-                  onSelectTab('org_admin_dashboard');
-                  onCloseMobile();
-                }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  activeTab === 'org_admin_dashboard'
-                    ? 'bg-slate-900 text-white shadow-xs border-slate-900'
-                    : 'bg-teal-50/70 hover:bg-teal-100/80 text-teal-950 border-teal-200/80'
-                }`}
-              >
-                <Building className={`w-4 h-4 shrink-0 ${activeTab === 'org_admin_dashboard' ? 'text-emerald-400' : 'text-teal-600'}`} />
-                <div className="text-left min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs truncate">Org Admin</span>
-                    <span className="text-[9px] bg-teal-600 text-white font-bold px-1.5 py-0.2 rounded-full">
-                      Branch
-                    </span>
-                  </div>
-                  <span className="text-[10px] opacity-75 font-normal block truncate">Unit member additions & removals</span>
-                </div>
-              </button>
-            </div>
-          ) : activeMember.isOrgAdmin || activeMember.isLeader ? (
+            {/* Organization / Branch Admin (David) */}
             <button
               onClick={() => {
                 onSelectTab('org_admin_dashboard');
                 onCloseMobile();
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
                 activeTab === 'org_admin_dashboard'
                   ? 'bg-slate-900 text-white shadow-xs border-slate-900'
-                  : 'bg-teal-50/80 hover:bg-teal-100/90 text-teal-950 border-teal-200/90'
+                  : 'bg-teal-50/70 hover:bg-teal-100 text-teal-950 border-teal-200/80'
               }`}
             >
-              <Building className={`w-4 h-4 shrink-0 ${activeTab === 'org_admin_dashboard' ? 'text-emerald-400' : 'text-teal-600'}`} />
+              <Building className={`w-4 h-4 shrink-0 ${activeTab === 'org_admin_dashboard' ? 'text-teal-300' : 'text-teal-600'}`} />
               <div className="text-left min-w-0 flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs truncate">Organization Admin</span>
+                  <span className="font-bold text-xs truncate">Branch Admin (David)</span>
                   <span className="text-[9px] bg-teal-600 text-white font-bold px-1.5 py-0.2 rounded-full">
-                    Branch Head
+                    Branch
                   </span>
                 </div>
-                <span className="text-[10px] opacity-75 font-normal block truncate">Add & remove unit members</span>
+                <span className="text-[10px] opacity-75 font-normal block truncate">North Branch members & units</span>
               </div>
             </button>
-          ) : (
+
+            {/* Individual User Space */}
             <button
               onClick={() => {
                 onSelectTab('user_dashboard');
                 onCloseMobile();
               }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
                 activeTab === 'user_dashboard'
                   ? 'bg-slate-900 text-white shadow-xs border-slate-900'
-                  : 'bg-emerald-50/80 hover:bg-emerald-100/90 text-emerald-950 border-emerald-200/90'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
               }`}
             >
-              <Users className={`w-4 h-4 shrink-0 ${activeTab === 'user_dashboard' ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <Users className={`w-4 h-4 shrink-0 ${activeTab === 'user_dashboard' ? 'text-indigo-400' : 'text-slate-600'}`} />
               <div className="text-left min-w-0 flex-1">
-                <span className="block font-bold text-xs truncate">My Family Space</span>
-                <span className="text-[10px] opacity-75 font-normal block truncate">My contributions & milestones</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs truncate">My Family Space</span>
+                  <span className="text-[9px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.2 rounded-full">
+                    User
+                  </span>
+                </div>
+                <span className="text-[10px] opacity-75 font-normal block truncate">Personal contributions & RSVPs</span>
               </div>
             </button>
-          )}
+
+            {/* Super Admin Platform Console (Bonette / IBYO YAKOZE) */}
+            <button
+              onClick={() => {
+                onSelectTab('super_admin_dashboard');
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
+                activeTab === 'super_admin_dashboard'
+                  ? 'bg-indigo-950 text-white shadow-xs border-indigo-700'
+                  : 'bg-indigo-50/60 hover:bg-indigo-100 text-indigo-950 border-indigo-200/80'
+              }`}
+            >
+              <Shield className={`w-4 h-4 shrink-0 ${activeTab === 'super_admin_dashboard' ? 'text-indigo-300' : 'text-indigo-600'}`} />
+              <div className="text-left min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs truncate">Super Admin (Bonette)</span>
+                  <span className="text-[9px] bg-indigo-600 text-white font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                    IBYO YAKOZE
+                  </span>
+                </div>
+                <span className="text-[10px] opacity-75 font-normal block truncate">Platform Owner • Anti-chaos oversight</span>
+              </div>
+            </button>
+          </div>
 
           {/* Living Room Chat */}
           <button

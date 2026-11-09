@@ -64,8 +64,8 @@ export const FamilyAuthLanding: React.FC<FamilyAuthLandingProps> = ({
   const [familyRole, setFamilyRole] = useState('Mother');
   const [registerError, setRegisterError] = useState<string | null>(null);
 
-  // Super Admin view state
-  const [superAdminEmail, setSuperAdminEmail] = useState('kibondoqueenmary2022@gmail.com');
+  // Super Admin view state (Platform Owner Bonette - IBYO YAKOZE)
+  const [superAdminEmail, setSuperAdminEmail] = useState('IBYO YAKOZE');
   const [superAdminPass, setSuperAdminPass] = useState('admin');
   const [superAdminError, setSuperAdminError] = useState<string | null>(null);
 
@@ -534,21 +534,21 @@ export const FamilyAuthLanding: React.FC<FamilyAuthLandingProps> = ({
             </form>
           )}
 
-          {/* TAB 3: Super Admin Governance Portal */}
+          {/* TAB 3: Super Admin Governance Portal (Platform Owner Bonette) */}
           {activeTab === 'superadmin' && (
             <form onSubmit={handleSuperAdminSignIn} className="space-y-4">
               <div className="flex items-center gap-2">
                 <Crown className="w-5 h-5 text-indigo-400" />
                 <div>
-                  <h3 className="text-base font-bold text-white">Super Admin Governance</h3>
+                  <h3 className="text-base font-bold text-white">Platform Owner & Super Admin</h3>
                   <p className="text-xs text-slate-400">
-                    Oversees all lineage branches and maintains integrity
+                    Bonette (IBYO YAKOZE) • Overseeing system integrity & organizations
                   </p>
                 </div>
               </div>
 
               <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
-                Super Admins possess root governance over the entire platform, with the authority to audit conduct and <strong>remove any family admin who violates trust or makes mistakes</strong>.
+                As Platform Owner, <strong>Bonette</strong> oversees the entire system. Organization admins register standardly, and the Super Admin maintains order across all branches. In cases of disruption or chaos, the Super Admin can <strong>delete an entire organization</strong> from the platform.
               </div>
 
               {superAdminError && (
@@ -560,34 +560,38 @@ export const FamilyAuthLanding: React.FC<FamilyAuthLandingProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Super Admin Email
+                  Super Admin Username / ID
                 </label>
                 <input
-                  type="email"
+                  type="text"
+                  required
                   value={superAdminEmail}
                   onChange={(e) => setSuperAdminEmail(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-white/10 rounded-xl text-white"
+                  placeholder="IBYO YAKOZE"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-white/10 rounded-xl text-white font-mono uppercase"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Super Admin Password
+                  Password
                 </label>
                 <input
                   type="password"
+                  required
                   value={superAdminPass}
                   onChange={(e) => setSuperAdminPass(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-white/10 rounded-xl text-white"
+                  placeholder="••••••••"
+                  className="w-full px-3 py-2 text-xs bg-slate-950 border border-white/10 rounded-xl text-white font-mono"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Crown className="w-3.5 h-3.5" />
-                <span>Enter Super Admin Portal</span>
+                <span>Enter as Super Admin (Bonette)</span>
               </button>
             </form>
           )}

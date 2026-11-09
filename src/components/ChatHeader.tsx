@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Phone, 
   Video, 
@@ -7,16 +7,18 @@ import {
   Volume2, 
   VolumeX, 
   Users, 
-  Info,
-  Menu,
-  Sparkles,
-  ChevronDown,
-  Shield,
-  KeyRound,
-  Mail,
-  LogIn,
-  Settings,
-  Crown
+  Info, 
+  Menu, 
+  Sparkles, 
+  ChevronDown, 
+  Shield, 
+  KeyRound, 
+  Mail, 
+  LogIn, 
+  Settings, 
+  Crown,
+  Clock,
+  X
 } from 'lucide-react';
 import { Channel, FamilyMember } from '../types/family';
 import { DailyFamilyInsight } from './DailyFamilyInsight';
@@ -79,6 +81,74 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onSignOut,
 }) => {
   const [isPinnedDismissed, setIsPinnedDismissed] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('family_recent_searches_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 5);
+      }
+      return ['wedding', 'rehearsal', 'photos', 'dinner', 'sourdough'];
+    } catch {
+      return ['wedding', 'rehearsal', 'photos', 'dinner', 'sourdough'];
+    }
+  });
+
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('family_recent_searches_v1', JSON.stringify(recentSearches));
+    } catch {}
+  }, [recentSearches]);
+
+  // Click outside to close recent searches dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const saveToRecentSearches = (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed || trimmed.length < 2) return;
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((item) => item.toLowerCase() !== trimmed.toLowerCase());
+      return [trimmed, ...filtered].slice(0, 5);
+    });
+  };
+
+  const handleSelectRecentSearch = (term: string) => {
+    onSearchChange(term);
+    saveToRecentSearches(term);
+    setIsSearchFocused(false);
+  };
+
+  const handleRemoveRecentSearch = (e: React.MouseEvent, term: string) => {
+    e.stopPropagation();
+    setRecentSearches((prev) => prev.filter((item) => item !== term));
+  };
+
+  const handleClearAllRecentSearches = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRecentSearches([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (searchQuery.trim()) {
+        saveToRecentSearches(searchQuery);
+      }
+      setIsSearchFocused(false);
+    } else if (e.key === 'Escape') {
+      setIsSearchFocused(false);
+    }
+  };
 
   return (
     <div className="border-b border-slate-200/80 bg-white shrink-0">
@@ -120,31 +190,83 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {/* Right Actions Zone */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           
-          {/* Full-Text Content & Caption Search Input */}
-          <div className="flex items-center bg-slate-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 transition-all w-32 sm:w-56 md:w-72 shrink-0 shadow-2xs">
-            <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
-            <input
-              type="text"
-              placeholder={searchAcrossAllChannels ? 'Search all rooms & captions...' : `Search #${currentChannel.name}...`}
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="bg-transparent focus:outline-none text-slate-800 w-full text-xs placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <div className="flex items-center gap-1 shrink-0 ml-1">
-                {searchResultsCount !== undefined && (
-                  <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px] font-bold">
-                    {searchResultsCount}
+          {/* Full-Text Content & Caption Search Input with Recent Searches */}
+          <div ref={searchContainerRef} className="relative">
+            <div className="flex items-center bg-slate-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/30 focus-within:border-emerald-500 rounded-xl px-2.5 py-1.5 text-xs border border-slate-200 transition-all w-36 sm:w-56 md:w-72 shrink-0 shadow-2xs">
+              <Search className="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
+              <input
+                type="text"
+                placeholder={searchAcrossAllChannels ? 'Search all rooms & captions...' : `Search #${currentChannel.name}...`}
+                value={searchQuery}
+                onFocus={() => setIsSearchFocused(true)}
+                onKeyDown={handleKeyDown}
+                onChange={(e) => {
+                  onSearchChange(e.target.value);
+                  if (e.target.value.trim().length >= 3) {
+                    saveToRecentSearches(e.target.value);
+                  }
+                }}
+                className="bg-transparent focus:outline-none text-slate-800 w-full text-xs placeholder:text-slate-400"
+              />
+              {searchQuery && (
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                  {searchResultsCount !== undefined && (
+                    <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px] font-bold">
+                      {searchResultsCount}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onSearchChange('')}
+                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Searches Floating Dropdown */}
+            {isSearchFocused && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-2 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Recent Searches (Last 5)</span>
                   </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onSearchChange('')}
-                  className="text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
-                  title="Clear search"
-                >
-                  ✕
-                </button>
+                  <button
+                    type="button"
+                    onMouseDown={handleClearAllRecentSearches}
+                    className="text-slate-400 hover:text-rose-600 transition-colors font-medium text-[10px] cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="py-1 divide-y divide-slate-50">
+                  {recentSearches.map((term, index) => (
+                    <div
+                      key={index}
+                      onMouseDown={() => handleSelectRecentSearch(term)}
+                      className="px-3 py-2 hover:bg-emerald-50/70 transition-colors flex items-center justify-between group cursor-pointer text-xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                        <span className="font-medium text-slate-700 group-hover:text-emerald-900 truncate">
+                          {term}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => handleRemoveRecentSearch(e, term)}
+                        className="text-slate-300 hover:text-rose-600 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="Remove keyword"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
