@@ -168,6 +168,7 @@ export interface Attachment {
   type: 'image' | 'audio' | 'location' | 'recipe' | 'music' | 'entertainment';
   url?: string;
   caption?: string;
+  transcription?: string; // Auto-generated speech-to-text transcription for voice notes
   duration?: number; // seconds for audio
   audioBlobUrl?: string;
   recipeTitle?: string;

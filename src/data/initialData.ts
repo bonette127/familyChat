@@ -308,6 +308,31 @@ export const INITIAL_MESSAGES: Message[] = [
     reactions: {},
     readBy: ['sophia-daughter', 'liam-son'],
   },
+  {
+    id: 'msg-6',
+    channelId: 'celebrations',
+    senderId: 'sarah-aunt',
+    content: 'Family milestone announcement: All invitations for Sophia’s wedding ceremony and rehearsal dinner are printed and sent!',
+    timestamp: 'Today at 10:45 AM',
+    reactions: {},
+    readBy: ['sarah-aunt', 'sophia-daughter', 'david-unit-lead'],
+  },
+  {
+    id: 'msg-7',
+    channelId: 'general',
+    senderId: 'david-unit-lead',
+    content: '🎙️ Voice Note from North Branch',
+    timestamp: 'Today at 10:50 AM',
+    reactions: {},
+    readBy: ['david-unit-lead', 'sophia-daughter'],
+    attachments: [
+      {
+        type: 'audio',
+        duration: 9,
+        transcription: 'Just leaving the bakery with sourdough bread and wedding rehearsal pastries for the family!',
+      },
+    ],
+  },
 ];
 
 export const INITIAL_CHANNELS: Channel[] = [

@@ -12,9 +12,11 @@ import {
   Filter,
   X,
   Clock,
-  ExternalLink
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 import { Attachment, FamilyMember, Message } from '../types/family';
+import { highlightTextMatches } from '../utils/textHighlight';
 
 interface MessageItemProps {
   message: Message;
@@ -22,6 +24,8 @@ interface MessageItemProps {
   activeMemberId: string;
   isSameSender: boolean;
   isSelected?: boolean;
+  searchQuery?: string;
+  channelName?: string;
   onSelectForReaction?: (message: Message) => void;
   onReact: (messageId: string, emoji: string) => void;
   onVotePoll: (messageId: string, optionId: string) => void;
@@ -37,6 +41,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   activeMemberId,
   isSameSender,
   isSelected = false,
+  searchQuery,
+  channelName,
   onSelectForReaction,
   onReact,
   onVotePoll,
@@ -169,6 +175,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 ({sender.role})
               </span>
             )}
+            {channelName && searchQuery && (
+              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-1.5 py-0.2 rounded-md">
+                #{channelName}
+              </span>
+            )}
             <span aria-hidden="true" className="text-slate-300">·</span>
             <span className="text-[11px] text-slate-400 font-mono">
               {formatTimestamp(message.timestamp)}
@@ -189,7 +200,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             }`}
           >
             <span className="font-semibold">{message.replyTo.senderName}: </span>
-            <span>{message.replyTo.text}</span>
+            <span>{highlightTextMatches(message.replyTo.text, searchQuery)}</span>
           </div>
         )}
 
@@ -213,7 +224,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           {/* Text Content */}
           {message.content && (
             <p className="text-sm leading-relaxed whitespace-pre-wrap select-text">
-              {message.content}
+              {highlightTextMatches(message.content, searchQuery)}
             </p>
           )}
 
@@ -233,7 +244,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div className="text-xs">
-                    <p className="font-semibold">{att.locationName || 'Checked In'}</p>
+                    <p className="font-semibold">{highlightTextMatches(att.locationName || 'Checked In', searchQuery)}</p>
                     {att.eta && <p className="opacity-80 mt-0.5">{att.eta}</p>}
                   </div>
                 </div>
@@ -256,7 +267,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   </div>
                   {att.caption && (
                     <p className={`text-xs mt-1.5 italic ${isMe ? 'text-slate-300' : 'text-slate-500'}`}>
-                      {att.caption}
+                      {highlightTextMatches(att.caption, searchQuery)}
                     </p>
                   )}
                 </div>
@@ -265,54 +276,72 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
             if (att.type === 'audio') {
               return (
-                <div
-                  key={i}
-                  className={`mt-2.5 p-3 rounded-xl flex items-center gap-3 border ${
-                    isMe
-                      ? 'bg-slate-800/90 border-slate-700 text-white'
-                      : 'bg-slate-100/90 border-slate-200 text-slate-900'
-                  }`}
-                >
-                  <button
-                    onClick={handleToggleAudio}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                <div key={i} className="mt-2.5 space-y-1.5">
+                  <div
+                    className={`p-3 rounded-xl flex items-center gap-3 border ${
                       isMe
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        ? 'bg-slate-800/90 border-slate-700 text-white'
+                        : 'bg-slate-100/90 border-slate-200 text-slate-900'
                     }`}
                   >
-                    {isPlayingAudio ? (
-                      <Pause className="w-4 h-4 fill-white" />
-                    ) : (
-                      <Play className="w-4 h-4 fill-white ml-0.5" />
-                    )}
-                  </button>
+                    <button
+                      onClick={handleToggleAudio}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                        isMe
+                          ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      }`}
+                    >
+                      {isPlayingAudio ? (
+                        <Pause className="w-4 h-4 fill-white" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-white ml-0.5" />
+                      )}
+                    </button>
 
-                  <div className="flex-1 flex flex-col gap-1">
-                    <div className="flex items-center gap-0.5 h-6">
-                      {[12, 24, 18, 28, 14, 20, 26, 16, 22, 10, 19, 25, 14, 27, 21, 15].map((h, barIdx) => {
-                        const barThreshold = (barIdx / 16) * 100;
-                        const isPast = audioProgress >= barThreshold;
-                        return (
-                          <span
-                            key={barIdx}
-                            style={{ height: `${h}px` }}
-                            className={`flex-1 rounded-full transition-colors ${
-                              isPast
-                                ? 'bg-emerald-400'
-                                : isMe
-                                ? 'bg-slate-600'
-                                : 'bg-slate-300'
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                      <span>Voice Note</span>
-                      <span>{att.duration ? `00:${att.duration.toString().padStart(2, '0')}` : '00:08'}</span>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <div className="flex items-center gap-0.5 h-6">
+                        {[12, 24, 18, 28, 14, 20, 26, 16, 22, 10, 19, 25, 14, 27, 21, 15].map((h, barIdx) => {
+                          const barThreshold = (barIdx / 16) * 100;
+                          const isPast = audioProgress >= barThreshold;
+                          return (
+                            <span
+                              key={barIdx}
+                              style={{ height: `${h}px` }}
+                              className={`flex-1 rounded-full transition-colors ${
+                                isPast
+                                  ? 'bg-emerald-400'
+                                  : isMe
+                                  ? 'bg-slate-600'
+                                  : 'bg-slate-300'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <span>Voice Note</span>
+                        <span>{att.duration ? `00:${att.duration.toString().padStart(2, '0')}` : '00:08'}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Voice Note Transcription with Search Match Highlight */}
+                  {att.transcription && (
+                    <div className={`p-2 rounded-lg text-xs flex items-start gap-1.5 ${
+                      isMe ? 'bg-slate-800/60 text-slate-200 border border-slate-700/60' : 'bg-slate-50 text-slate-700 border border-slate-200'
+                    }`}>
+                      <FileText className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400 block mb-0.5">
+                          Voice Transcript
+                        </span>
+                        <span className="italic leading-relaxed">
+                          "{highlightTextMatches(att.transcription, searchQuery)}"
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -331,7 +360,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             >
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-bold font-display">
-                  📊 {message.poll.question}
+                  📊 {highlightTextMatches(message.poll.question, searchQuery)}
                 </h4>
               </div>
 
@@ -370,7 +399,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                               ✓
                             </span>
                           )}
-                          {opt.text}
+                          {highlightTextMatches(opt.text, searchQuery)}
                         </span>
                         <span className="font-mono font-semibold ml-2 shrink-0">
                           {voteCount} ({percent}%)

@@ -7,6 +7,9 @@ interface MessageListProps {
   messages: Message[];
   members: FamilyMember[];
   activeMemberId: string;
+  searchQuery?: string;
+  channels?: { id: string; name: string }[];
+  onClearSearch?: () => void;
   selectedMessageId?: string | null;
   onSelectMessage?: (message: Message) => void;
   onReact: (messageId: string, emoji: string) => void;
@@ -21,6 +24,9 @@ export const MessageList: React.FC<MessageListProps> = ({
   messages,
   members,
   activeMemberId,
+  searchQuery,
+  channels,
+  onClearSearch,
   selectedMessageId,
   onSelectMessage,
   onReact,
@@ -100,25 +106,73 @@ export const MessageList: React.FC<MessageListProps> = ({
       ref={containerRef}
       className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 space-y-4 bg-slate-50/50"
     >
-      {messages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full py-16 text-center max-w-md mx-auto space-y-3">
-          <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-3xl shadow-inner">
-            🛋️
+      {/* Search Filter Status Header */}
+      {searchQuery?.trim() && (
+        <div className="sticky top-0 z-20 mb-3 px-3.5 py-2 rounded-xl bg-amber-50/95 backdrop-blur-xs border border-amber-200/90 shadow-2xs flex items-center justify-between text-xs text-amber-950">
+          <div className="flex items-center gap-2 min-w-0">
+            <Search className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span className="truncate">
+              Found <strong>{messages.length}</strong> {messages.length === 1 ? 'match' : 'matches'} for query:{' '}
+              <span className="bg-yellow-300 text-slate-900 font-bold px-1.5 py-0.5 rounded-xs">
+                {searchQuery.trim()}
+              </span>
+            </span>
           </div>
-          <h3 className="text-base font-bold text-slate-800 font-display">
-            The Family Living Room is Clean & Ready
-          </h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            All previous clutter and mock data have been stripped out. As the Family Head, you can send the very first message below, announce a family milestone, or register members to join your private circle.
-          </p>
-          <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl font-semibold">
-            <span>👑 Admin Space • Ready for Testing</span>
-          </div>
+          {onClearSearch && (
+            <button
+              onClick={onClearSearch}
+              className="ml-2 shrink-0 px-2 py-0.5 text-[11px] font-semibold bg-white hover:bg-amber-100 border border-amber-300 rounded-lg text-amber-900 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <X className="w-3 h-3" />
+              <span>Clear Filter</span>
+            </button>
+          )}
         </div>
+      )}
+
+      {messages.length === 0 ? (
+        searchQuery?.trim() ? (
+          <div className="flex flex-col items-center justify-center h-full py-16 text-center max-w-md mx-auto space-y-3">
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl shadow-inner">
+              🔍
+            </div>
+            <h3 className="text-base font-bold text-slate-800 font-display">
+              No Messages Found Matching "{searchQuery.trim()}"
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              We searched across messages, attachments, captions, and voice note transcripts, but found no matches.
+            </p>
+            {onClearSearch && (
+              <button
+                onClick={onClearSearch}
+                className="mt-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset Search</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-16 text-center max-w-md mx-auto space-y-3">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-3xl shadow-inner">
+              🛋️
+            </div>
+            <h3 className="text-base font-bold text-slate-800 font-display">
+              The Family Living Room is Clean & Ready
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              All previous clutter and mock data have been stripped out. As the Family Head, you can send the very first message below, announce a family milestone, or register members to join your private circle.
+            </p>
+            <div className="pt-2 flex items-center gap-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl font-semibold">
+              <span>👑 Admin Space • Ready for Testing</span>
+            </div>
+          </div>
+        )
       ) : (
         messages.map((msg, index) => {
           const prevMsg = messages[index - 1];
           const isSameSender = prevMsg ? prevMsg.senderId === msg.senderId : false;
+          const channel = channels?.find((c) => c.id === msg.channelId);
 
           return (
             <MessageItem
@@ -126,6 +180,8 @@ export const MessageList: React.FC<MessageListProps> = ({
               message={msg}
               members={members}
               activeMemberId={activeMemberId}
+              searchQuery={searchQuery}
+              channelName={channel?.name}
               isSameSender={isSameSender}
               isSelected={selectedMessageId === msg.id}
               onSelectForReaction={onSelectMessage}

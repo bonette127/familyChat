@@ -426,14 +426,28 @@ export default function App() {
   // Filter messages: full-text search across all channels or within current channel
   const currentChannelMessages = messages.filter((m) => {
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       // Match keywords in message text
       const matchesContent = m.content.toLowerCase().includes(q);
-      // Match keywords in attachment captions, location names
+      // Match keywords in attachment captions, location names, or audio transcriptions
       const matchesAttachment = m.attachments && m.attachments.some(
-        (a) => a.caption?.toLowerCase().includes(q) || a.locationName?.toLowerCase().includes(q)
+        (a) =>
+          a.caption?.toLowerCase().includes(q) ||
+          a.locationName?.toLowerCase().includes(q) ||
+          a.transcription?.toLowerCase().includes(q)
       );
-      const isKeywordMatch = matchesContent || matchesAttachment;
+      // Match keywords in poll question or options
+      const matchesPoll = m.poll && (
+        m.poll.question.toLowerCase().includes(q) ||
+        m.poll.options.some((o) => o.text.toLowerCase().includes(q))
+      );
+      // Match keywords in reply preview
+      const matchesReply = m.replyTo && (
+        m.replyTo.text.toLowerCase().includes(q) ||
+        m.replyTo.senderName.toLowerCase().includes(q)
+      );
+
+      const isKeywordMatch = matchesContent || matchesAttachment || matchesPoll || matchesReply;
 
       if (searchAcrossAllChannels) {
         return isKeywordMatch;
@@ -644,11 +658,21 @@ export default function App() {
   };
 
   const handleSendVoiceNote = (audioUrl: string, duration: number) => {
+    const sampleTranscripts = [
+      'Heading over to the house now with fresh groceries and sourdough bread for dinner!',
+      'Just leaving practice! Can someone save a warm plate of lasagna for me?',
+      'The wedding conservatory venue looks breathtaking! Checking in on everyone.',
+      'Confirming arrival times for the North Branch relatives rehearsal reunion.',
+      'Just picking up fresh pastries and supplies for tomorrow morning!'
+    ];
+    const transcription = sampleTranscripts[Math.floor(Math.random() * sampleTranscripts.length)];
+
     handleSendMessage('🎙️ Voice Note', [
       {
         type: 'audio',
         audioBlobUrl: audioUrl,
         duration,
+        transcription,
       },
     ]);
   };
@@ -1771,7 +1795,10 @@ export default function App() {
               <MessageList
                 messages={currentChannelMessages}
                 members={members}
+                channels={channels}
                 activeMemberId={activeMemberId}
+                searchQuery={searchQuery}
+                onClearSearch={() => setSearchQuery('')}
                 selectedMessageId={selectedMessageForReaction?.id}
                 onSelectMessage={(msg) =>
                   setSelectedMessageForReaction((prev) => (prev?.id === msg.id ? null : msg))
